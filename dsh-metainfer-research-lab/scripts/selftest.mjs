@@ -16,6 +16,7 @@ import { createGitEngine, matchBranchHint, normalizeRemoteRepoUrl } from '../hos
 import { createLabService } from '../host/lab-service.js';
 import { registerHttpRoutes } from '../host/http.js';
 import { createUpdateService } from '../host/update.js';
+import { buildModelCatalog } from '../host/models.js';
 import { nativeAttentionPlan, requestNativeAttention } from '../host/native-attention.js';
 
 const DEMO_REPO = process.env.MIRL_DEMO_REPO
@@ -647,6 +648,51 @@ await test('HTTP malformed body returns the error envelope', async () => {
 });
 
 disposeRoutes();
+
+await test('model catalog queries providers by registered id', async () => {
+  const asked = [];
+  const ctx = {
+    llm: {
+      listProviders: () => [{ id: 'dsh', name: '中转站' }],
+      listModels: async (id) => {
+        asked.push(id);
+        if (id !== 'dsh') throw new Error('unknown provider');
+        return [{ id: 'gpt-6.1-sol', name: 'gpt-6.1-sol' }];
+      },
+    },
+  };
+  const catalog = await buildModelCatalog(ctx, {
+    id: 'project-catalog',
+    config: { modelOptions: [], models: {}, routing: {} },
+  });
+  assert.deepEqual(asked, ['dsh']);
+  assert.equal(catalog.providers.length, 1);
+  assert.equal(catalog.providers[0].id, 'dsh');
+  assert.equal(catalog.providers[0].name, '中转站');
+  assert.deepEqual(catalog.providers[0].models, [{ id: 'gpt-6.1-sol', name: 'gpt-6.1-sol' }]);
+});
+
+await test('updateProject can clear a role model with null', async () => {
+  const created = await lab.createProject({
+    name: 'Role clear',
+    brief: 'Clear a role model through the project update contract.',
+    repoPath: DEMO_REPO,
+    initialPrompt: 'Run the seed sweep and report the mean validation loss.',
+    config: { resourcePools: { gpu: 1 }, maxRunningNodes: 1, maxNodes: 4, nodeTimeoutMinutes: 10 },
+  });
+  const pid = created.project.id;
+  await lab.updateProject(pid, {
+    config: { models: { advisor: { provider: 'test-provider', model: 'test-model' } } },
+  });
+  let project = (await lab.getState(pid)).project;
+  assert.equal(project.config.models.advisor.provider, 'test-provider');
+  assert.equal(project.config.models.roles.advisor.provider, 'test-provider');
+
+  await lab.updateProject(pid, { config: { models: { advisor: null } } });
+  project = (await lab.getState(pid)).project;
+  assert.equal(project.config.models.advisor, undefined);
+  assert.equal(project.config.models.roles?.advisor, undefined);
+});
 
 for (const [status, name, detail] of results) {
   console.log(`${status}  ${name}${detail ? `\n${detail}` : ''}`);

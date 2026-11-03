@@ -12498,11 +12498,16 @@ window.__ModuleLoader__.load({
         const p = String(provider === undefined || provider === null ? '' : provider).trim();
         const m = String(model === undefined || model === null ? '' : model).trim();
         if (p && m) models[role] = { provider: p, model: m };
-        else delete models[role];
+        else models[role] = null; // explicit clear: inherit the project default again
       };
       setModel('worker', draft.workerProvider, draft.workerModel);
       setModel('advisor', draft.advisorProvider, draft.advisorModel);
       setModel('scheduler', draft.schedulerProvider, draft.schedulerModel);
+      if (models.roles !== null && typeof models.roles === 'object' && !Array.isArray(models.roles)) {
+        // Do not resend stale role entries: the flat role fields above are authoritative.
+        models.roles = { ...models.roles };
+        for (const role of ['worker', 'advisor', 'scheduler']) delete models.roles[role];
+      }
       const defaults = asObject(promptDefaults);
       const setPrompt = (key, value) => {
         const text = String(value === undefined || value === null ? '' : value).trim();

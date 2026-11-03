@@ -257,8 +257,10 @@ async function providerCatalog(ctx) {
     value = await Promise.all(providers.map(async (provider) => {
       let models = [];
       try {
+        // LlmRuntime.listModels() expects the registered provider *id*, not the
+        // display name; passing the name makes every catalog resolve empty.
         models = typeof llm.listModels === 'function'
-          ? (await llm.listModels(provider.name)).map((model) => ({ id: model.id, name: model.name ?? model.id }))
+          ? (await llm.listModels(provider.id)).map((model) => ({ id: model.id, name: model.name ?? model.id }))
           : [];
       } catch {
         models = [];

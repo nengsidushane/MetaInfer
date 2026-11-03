@@ -136,6 +136,10 @@ function normalizeConfig(raw, base = undefined) {
     }
     for (const [role, raw] of Object.entries(roleInputs)) {
       if (!['worker', 'advisor', 'scheduler', 'controller', 'merge', 'gc'].includes(role)) continue;
+      if (raw === null) {
+        delete models[role]; // explicit clear: inherit the project default again
+        continue;
+      }
       const normalized = normalizeModelRef(raw, `config.models.${role}`);
       if (normalized) {
         models[role] = normalized; // flat form used by existing settings UI
