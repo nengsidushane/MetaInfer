@@ -8,7 +8,7 @@
  * the Host and Client halves are only re-imported when DSH restarts.
  */
 import { spawn } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -133,7 +133,9 @@ export async function backupPlugin(root, stateDir, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date();
   const stamp = now.toISOString().replace(/[:.]/g, '-');
   const target = path.join(backupsDir, stamp);
-  await copyPluginTree(root, target);
+  // Linked installs are symlinks/junctions: copy the real tree, not the link.
+  const source = await realpath(root).catch(() => root);
+  await copyPluginTree(source, target);
   let entries = [];
   try {
     entries = await readdir(backupsDir, { withFileTypes: true });
@@ -315,18 +317,19 @@ export function createUpdateService(options = {}) {
   async function applyFrom(sourcePath, meta = {}) {
     const manifest = await validatePluginSource(sourcePath, root);
     await mkdir(stateDir, { recursive: true });
+    const installRoot = await realpath(root).catch(() => root);
     const current = await readPluginPackage(root).catch(() => null);
     let backup = '';
     try {
-      backup = await backupPlugin(root, stateDir, { now: clock() });
+      backup = await backupPlugin(installRoot, stateDir, { now: clock() });
     } catch (error) {
       throw failure('backup_failed', 'could not back up the current install: ' + error.message, 500);
     }
     try {
-      await copyPluginTree(manifest.dir, root);
+      await copyPluginTree(manifest.dir, installRoot);
     } catch (error) {
       try {
-        await copyPluginTree(backup, root);
+        await copyPluginTree(backup, installRoot);
       } catch {
         // The backup path is reported below; a failed restore leaves it usable.
       }
