@@ -81,6 +81,7 @@ window.__ModuleLoader__.load({
       maxNodes: 60,
       nodeTimeoutMinutes: 10,
       maxNodeTimeoutMinutes: 240,
+      roleRunTimeoutMinutes: 30,
     };
     /** Documented limit used before a project config is available. */
     const FALLBACK_MAX_TIMEOUT_MINUTES = 240;
@@ -757,6 +758,8 @@ window.__ModuleLoader__.load({
       'ws.settings.idleCycleLimit': '空转熔断（连续无进展轮数）',
       'ws.settings.nodeTimeoutMinutes': '默认执行时限（分钟）',
       'ws.settings.maxNodeTimeoutMinutes': '单节点时限上限（分钟）',
+      'ws.settings.roleRunTimeoutMinutes': '专家组单轮超时（分钟）',
+      'ws.settings.roleRunTimeoutMinutes.hint': 'advisor/scheduler/reviewer 单轮运行上限，默认 30 分钟；超时后该轮记为失败并进入下一轮。',
       'ws.settings.maxRunningNodes': '并发节点上限',
       'ws.settings.maxNodes': '节点总数上限',
       'ws.settings.pools.hint': '键值对，例如 gpu: 1。',
@@ -2039,6 +2042,8 @@ window.__ModuleLoader__.load({
       'ws.settings.idleCycleLimit': 'Idle fuse (consecutive no-progress cycles)',
       'ws.settings.nodeTimeoutMinutes': 'Default node timebox (minutes)',
       'ws.settings.maxNodeTimeoutMinutes': 'Max node timebox (minutes)',
+      'ws.settings.roleRunTimeoutMinutes': 'Advisor run timeout (minutes)',
+      'ws.settings.roleRunTimeoutMinutes.hint': 'Per-run limit for advisor/scheduler/reviewer passes, default 30 minutes; a timed-out pass is recorded as failed and the next cycle continues.',
       'ws.settings.maxRunningNodes': 'Max concurrent nodes',
       'ws.settings.maxNodes': 'Max total nodes',
       'ws.settings.pools.hint': 'Key/value pairs, e.g. gpu: 1.',
@@ -12383,6 +12388,7 @@ window.__ModuleLoader__.load({
         idleCycleLimit: String(numberOr(auto.idleCycleLimit, 3)),
         nodeTimeoutMinutes: String(Math.round(projectDefaultTimeoutMinutes(project))),
         maxNodeTimeoutMinutes: String(Math.round(projectMaxTimeoutMinutes(project))),
+        roleRunTimeoutMinutes: String(Math.round(numberOr(config.roleRunTimeoutMinutes, 30))),
         maxRunningNodes: String(Math.round(projectMaxRunningNodes(project))),
         maxNodes: String(Math.round(projectMaxNodes(project))),
         autoMaxTokens: String(numberOr(auto.maxTokens, 0)),
@@ -12524,6 +12530,7 @@ window.__ModuleLoader__.load({
         maxNodes: Math.max(1, parseInteger(draft.maxNodes, 60)),
         nodeTimeoutMinutes: Math.max(1, parseInteger(draft.nodeTimeoutMinutes, 10)),
         maxNodeTimeoutMinutes: Math.max(1, parseInteger(draft.maxNodeTimeoutMinutes, 240)),
+        roleRunTimeoutMinutes: Math.max(1, Math.min(1440, parseInteger(draft.roleRunTimeoutMinutes, 30))),
         advisor,
         auto,
         models,
@@ -13329,6 +13336,13 @@ window.__ModuleLoader__.load({
                     ariaLabel: t('ws.settings.maxNodeTimeoutMinutes'),
                     onChange: (event) => setField('maxNodeTimeoutMinutes', event.target.value),
                   })),
+                h(LabField, { label: t('ws.settings.roleRunTimeoutMinutes') },
+                  h(LabInput, {
+                    type: 'number',
+                    value: draft.roleRunTimeoutMinutes,
+                    ariaLabel: t('ws.settings.roleRunTimeoutMinutes'),
+                    onChange: (event) => setField('roleRunTimeoutMinutes', event.target.value),
+                  })),
                 h(LabField, { label: t('ws.settings.maxRunningNodes') },
                   h(LabInput, {
                     type: 'number',
@@ -13344,6 +13358,7 @@ window.__ModuleLoader__.load({
                     onChange: (event) => setField('maxNodes', event.target.value),
                   })),
               ),
+              h('p', { className: 'rl-hint' }, t('ws.settings.roleRunTimeoutMinutes.hint')),
             ),
             h(
               'div',

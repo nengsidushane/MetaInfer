@@ -186,6 +186,7 @@ interface ProjectConfig {
   maxNodes: number;                            // 默认 60
   nodeTimeoutMs: number;                       // 节点默认硬超时，默认 10min（600000）
   maxNodeTimeoutMs: number;                    // 单节点允许选择的上限，默认 4h（14400000）
+  roleRunTimeoutMinutes: number;               // advisor/scheduler/reviewer 单轮运行超时，默认 30min
   timeoutSweepMs: number;                      // watchdog 扫描周期，默认 1000ms
   timeoutWarningRatio: number;                 // 软提醒阈值（如 0.8 = 剩余 20% 时提醒 worker），默认 0.8
   models: { worker?: ModelRef; advisor?: ModelRef; scheduler?: ModelRef }; // 缺省用 profile 默认模型

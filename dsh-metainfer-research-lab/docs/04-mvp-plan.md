@@ -51,6 +51,7 @@
 | `maxNodes` | `60` | 项目节点总数上限（硬上限） |
 | `nodeTimeoutMs` | `10min` | 节点默认硬超时；到点由 Host watchdog **确定性终止**（不是 Agent 决定） |
 | `maxNodeTimeoutMs` | `4h` | 单节点可选择的执行时限上限 |
+| `roleRunTimeoutMinutes` | `30min` | advisor/scheduler/reviewer 单轮运行超时（1–1440 分钟，项目设置可改） |
 | `timeoutSweepMs` / `timeoutWarningRatio` | `1000` / `0.8` | watchdog 扫描周期 / 剩余 20% 时软提醒 worker |
 | `advisor.maxProposalsPerPass` | `3` | 每个 cycle 最多采纳的提案数 |
 | `advisor.acceptMode` | `'auto'` | `'auto'` 直接进入 planned；`'confirm'` 先进入 proposed 等人工批准（不阻塞其他节点） |
@@ -133,7 +134,7 @@ dsh-metainfer-research-lab/
 
 - [x] 三个角色 preset 真跑通（worker/advisor/scheduler；controller 不参与任务）
 - [x] 快照构造（叶子 + 2 级祖先 + 资源 + 最近/待确认提案；截断规则）
-- [x] advisor/scheduler activation + `outputSchema` + 结构化输出解析 + 180s 超时
+- [x] advisor/scheduler activation + `outputSchema` + 结构化输出解析 + 可配置单轮超时（默认 30 分钟）
 - [x] Host 校验与落地：parent/标题/prompt/needs/timebox/去重/`maxNodes`、封存顺序（commit 父 → 写子 → tag+sealedAt）
 - [x] `acceptMode='confirm'`：proposed 创建 / 批准（封存父）/ 拒绝（删除）/ 编辑；审批期间父节点保持可对话
 - [x] 调度器校验与落地：资源账本、并发上限、逐项启动与拒绝记录（只从 planned 中选）

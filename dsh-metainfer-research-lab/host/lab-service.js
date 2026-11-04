@@ -119,6 +119,13 @@ function normalizeConfig(raw, base = undefined) {
     clusterPriority: integer(input.clusterPriority, 'config.clusterPriority', previous.clusterPriority ?? 0, 0, 100),
     nodeTimeoutMinutes,
     maxNodeTimeoutMinutes,
+    roleRunTimeoutMinutes: integer(
+      input.roleRunTimeoutMinutes,
+      'config.roleRunTimeoutMinutes',
+      previous.roleRunTimeoutMinutes ?? 30,
+      1,
+      MAX_TIMEOUT_MINUTES,
+    ),
   };
 
   if (input.models !== undefined) {

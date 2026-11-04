@@ -11,7 +11,14 @@ import { newSessionId } from './store.js';
 import { advisorCandidates, buildAdvisorSnapshot, buildSchedulerSnapshot, promptHash } from './snapshot.js';
 import { DEFAULT_ADVISOR_PROMPT, DEFAULT_SCHEDULER_PROMPT } from './prompts.js';
 
-const ROLE_RUN_TIMEOUT_MS = 180_000;
+const DEFAULT_ROLE_RUN_TIMEOUT_MINUTES = 30;
+
+/** Deadline for one advisor/scheduler/reviewer role run (project-configurable). */
+function roleRunTimeoutMs(project) {
+  const minutes = Number(project?.config?.roleRunTimeoutMinutes);
+  const effective = Number.isFinite(minutes) && minutes >= 1 ? Math.floor(minutes) : DEFAULT_ROLE_RUN_TIMEOUT_MINUTES;
+  return effective * 60_000;
+}
 
 const ADVISOR_SCHEMA = {
   type: 'object',
@@ -324,6 +331,7 @@ export function createOrchestrator({ ctx, store, git, runtime, cluster }) {
     let activation;
     let result = null;
     let failure = null;
+    let timeoutTimer = null;
     try {
       activation = await ctx.subagents.startActivation({
         provider: 'spawn',
@@ -341,14 +349,15 @@ export function createOrchestrator({ ctx, store, git, runtime, cluster }) {
         },
       });
       roleActivations.set(sessionId, { activation, projectId: project.id, record });
+      const timeoutMs = roleRunTimeoutMs(project);
       result = await Promise.race([
         activation.result,
         new Promise((_, reject) => {
-          const timer = setTimeout(
-            () => reject(new LabError('run_timeout', `${role} run exceeded ${ROLE_RUN_TIMEOUT_MS / 1000}s`, 504)),
-            ROLE_RUN_TIMEOUT_MS,
+          timeoutTimer = setTimeout(
+            () => reject(new LabError('run_timeout', `${role} run exceeded ${timeoutMs / 1000}s`, 504)),
+            timeoutMs,
           );
-          timer.unref?.();
+          timeoutTimer.unref?.();
         }),
       ]);
       if (result?.stopReason !== 'completed') {
@@ -357,6 +366,10 @@ export function createOrchestrator({ ctx, store, git, runtime, cluster }) {
     } catch (error) {
       failure = error;
     } finally {
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = null;
+      }
       roleActivations.delete(sessionId);
       if (activation) {
         try {
@@ -1140,4 +1153,4 @@ export function createOrchestrator({ ctx, store, git, runtime, cluster }) {
   };
 }
 
-export { ADVISOR_SCHEMA, SCHEDULER_SCHEMA, advisorPrompt, schedulerPrompt };
+export { ADVISOR_SCHEMA, SCHEDULER_SCHEMA, advisorPrompt, schedulerPrompt, roleRunTimeoutMs };

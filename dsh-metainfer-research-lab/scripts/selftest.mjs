@@ -17,6 +17,7 @@ import { createLabService } from '../host/lab-service.js';
 import { registerHttpRoutes } from '../host/http.js';
 import { createUpdateService } from '../host/update.js';
 import { buildModelCatalog } from '../host/models.js';
+import { roleRunTimeoutMs } from '../host/orchestrator.js';
 import { nativeAttentionPlan, requestNativeAttention } from '../host/native-attention.js';
 
 const DEMO_REPO = process.env.MIRL_DEMO_REPO
@@ -692,6 +693,32 @@ await test('updateProject can clear a role model with null', async () => {
   project = (await lab.getState(pid)).project;
   assert.equal(project.config.models.advisor, undefined);
   assert.equal(project.config.models.roles?.advisor, undefined);
+});
+
+await test('role run timeout defaults to 30 minutes and is project-configurable', async () => {
+  assert.equal(roleRunTimeoutMs({ config: {} }), 30 * 60_000);
+  assert.equal(roleRunTimeoutMs({ config: { roleRunTimeoutMinutes: 5 } }), 5 * 60_000);
+  assert.equal(roleRunTimeoutMs({ config: { roleRunTimeoutMinutes: 60 } }), 60 * 60_000);
+
+  const created = await lab.createProject({
+    name: 'Role timeout',
+    brief: 'Configure the advisor/scheduler run deadline from project settings.',
+    repoPath: DEMO_REPO,
+    initialPrompt: 'Run the seed sweep and report the mean validation loss.',
+    config: { resourcePools: { gpu: 1 }, maxRunningNodes: 1, maxNodes: 4, nodeTimeoutMinutes: 10 },
+  });
+  const pid = created.project.id;
+  let project = (await lab.getState(pid)).project;
+  assert.equal(project.config.roleRunTimeoutMinutes, 30);
+
+  await lab.updateProject(pid, { config: { roleRunTimeoutMinutes: 45 } });
+  project = (await lab.getState(pid)).project;
+  assert.equal(project.config.roleRunTimeoutMinutes, 45);
+
+  await assert.rejects(
+    () => lab.updateProject(pid, { config: { roleRunTimeoutMinutes: 0 } }),
+    (error) => error.code === 'bad_request',
+  );
 });
 
 for (const [status, name, detail] of results) {
