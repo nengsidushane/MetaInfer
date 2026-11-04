@@ -648,6 +648,19 @@ await test('HTTP malformed body returns the error envelope', async () => {
   assert.equal(payload.error.code, 'bad_request');
 });
 
+await test('copilot drawer embeds an active conversation and is memoized', async () => {
+  const source = await readFile(new URL('../client.js', import.meta.url), 'utf8');
+  assert.ok(
+    source.includes("renderFactorySlot('conversation.content', { variant: 'embedded', phase: 'active', hero: false })"),
+    'the drawer must request an embedded, active conversation',
+  );
+  assert.ok(
+    source.includes('const CopilotDrawerMemo = React.memo(CopilotDrawer);'),
+    'the drawer must be memoized so workspace polling does not re-render the native conversation',
+  );
+  assert.ok(source.includes('h(CopilotDrawerMemo, {'), 'WorkspaceScreen must render the memoized drawer');
+});
+
 disposeRoutes();
 
 await test('model catalog queries providers by registered id', async () => {

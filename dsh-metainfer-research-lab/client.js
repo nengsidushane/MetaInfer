@@ -1371,6 +1371,10 @@ window.__ModuleLoader__.load({
       'ws.copilot.openTrajectory': '在 DSH 中原生打开轨迹',
       'ws.copilot.retry': '重试',
       'ws.copilot.embeddedHint': '原生 Chat / Trajectory / composer 完整嵌入；Copilot 只读项目状态。',
+      'ws.copilot.layoutProbe': '布局',
+      'ws.copilot.layoutProbeHint': '点一下收集原生嵌入的布局链路，可直接粘贴反馈',
+      'ws.copilot.layoutProbeCopied': '布局链路已复制',
+      'ws.copilot.layoutProbeFailed': '复制失败，请手动选取下方文本',
       'ws.copilot.embedded': '内嵌原生会话',
       'ws.copilot.reused': '复用已有会话',
       'ws.copilot.created': '已创建新会话',
@@ -2655,6 +2659,10 @@ window.__ModuleLoader__.load({
       'ws.copilot.openTrajectory': 'Open native trajectory in DSH',
       'ws.copilot.retry': 'Retry',
       'ws.copilot.embeddedHint': 'Native Chat / Trajectory / composer are fully embedded; Copilot has read-only access to the project.',
+      'ws.copilot.layoutProbe': 'Layout',
+      'ws.copilot.layoutProbeHint': 'Collect the embedded native layout chain as text you can paste back',
+      'ws.copilot.layoutProbeCopied': 'Layout chain copied',
+      'ws.copilot.layoutProbeFailed': 'Copy failed; select the text below manually',
       'ws.copilot.embedded': 'Embedded native session',
       'ws.copilot.reused': 'Reusing the existing session',
       'ws.copilot.created': 'Created a new session',
@@ -2827,7 +2835,11 @@ window.__ModuleLoader__.load({
       '.rl-copilot-native-title { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 500; line-height: 20px; }',
       '.rl-copilot-native-hint { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
       '.rl-copilot-native-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }',
-      '.rl-copilot-native-view { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; overflow: auto; }',
+      '.rl-copilot-native-view { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }',
+      '.rl-copilot-native-view > [data-conversation-content] { flex: 1 1 auto; min-height: 0; height: 100%; }',
+      '.rl-copilot-native-view [data-conversation-scroll] { flex: 1 1 auto; min-height: 0; overflow-y: auto !important; justify-content: flex-start !important; }',
+      '.rl-copilot-native-view [data-composer-seat] { position: sticky !important; inset-block-end: 0 !important; inset-inline: 0 !important; z-index: 8; flex: 0 0 auto !important; background: var(--dsw-alias-bg-layer-1); }',
+      '.rl-copilot-probe { margin: 0; padding: 8px 14px; max-height: 38vh; overflow: auto; border-bottom: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 16px; white-space: pre; }',
       '.rl-copilot-native-loading { display: flex; flex: 1 1 auto; align-items: center; justify-content: center; padding: 24px; }',
       '.rl-copilot-native-fallback { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; padding: 18px; overflow: auto; }',
       '.rl-copilot { box-sizing: border-box; display: flex; flex-direction: column; flex: none; width: 380px; max-width: 42%; min-width: 300px; height: 100%; border-left: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); }',
@@ -8475,7 +8487,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'rl-workspace-main' }, body),
         h(ActivityLog, { events, onSelectNode: setSelectedId, onOpenRun: openRuns, t }),
         copilotOpen
-          ? h(CopilotDrawer, {
+          ? h(CopilotDrawerMemo, {
               projectId,
               onClose: closeCopilot,
               openNativeSession,
@@ -8651,7 +8663,10 @@ window.__ModuleLoader__.load({
       const [reference, setReference] = React.useState(null);
       const [reason, setReason] = React.useState('');
       const [attempt, setAttempt] = React.useState(0);
+      const [sessions, setSessions] = React.useState([]);
+      const [parentSessionId, setParentSessionId] = React.useState('');
       const referenceRef = React.useRef(null);
+      const requestRef = React.useRef({ sessionId: '', create: false });
 
       React.useEffect(() => {
         if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return undefined;
@@ -8664,6 +8679,8 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         let alive = true;
+        const request = requestRef.current && typeof requestRef.current === 'object' ? requestRef.current : {};
+        requestRef.current = { sessionId: '', create: false };
         setPhase('loading');
         setSessionId('');
         setReused(false);
@@ -8671,11 +8688,23 @@ window.__ModuleLoader__.load({
         setReason('');
         (async () => {
           try {
-            const data = await api.command({ type: 'project.copilot', projectId }, undefined, t);
+            const body = { type: 'project.copilot', projectId };
+            if (firstString(request.sessionId) !== '') body.sessionId = firstString(request.sessionId);
+            if (request.create === true) body.create = true;
+            const data = await api.command(body, undefined, t);
             if (!alive) return;
             const record = asObject(data);
             const id = firstString(record.sessionId);
             const isReused = record.reused === true;
+            const parent = firstString(record.parentSessionId);
+            const list = asArray(record.sessions)
+              .filter((entry) => entry !== null && typeof entry === 'object' && firstString(entry.id) !== '' && entry.private !== false)
+              .map((entry) => ({
+                id: firstString(entry.id),
+                title: firstString(entry.title) || firstString(entry.id),
+              }));
+            setSessions(list);
+            setParentSessionId(parent);
             if (id === '') {
               setPhase('fallback');
               setReason(t('ws.copilot.loadError'));
@@ -8683,7 +8712,7 @@ window.__ModuleLoader__.load({
             }
             setSessionId(id);
             setReused(isReused);
-            const ref = typeof retainCopilotSession === 'function' ? retainCopilotSession(id) : null;
+            const ref = typeof retainCopilotSession === 'function' ? retainCopilotSession(id, parent, attempt) : null;
             if (ref === null || ref === undefined) {
               setPhase('fallback');
               setReason(t('ws.copilot.embedUnavailable'));
@@ -8721,6 +8750,21 @@ window.__ModuleLoader__.load({
         };
       }, [projectId, attempt, retainCopilotSession, t]);
 
+      const switchCopilotSession = (nextId) => {
+        const id = firstString(nextId);
+        if (id === '' || id === sessionId) return;
+        requestRef.current = { sessionId: id, create: false };
+        setAttempt((value) => value + 1);
+      };
+      const createCopilotSession = () => {
+        requestRef.current = { sessionId: '', create: true };
+        setAttempt((value) => value + 1);
+      };
+      const currentSessionTitle = (() => {
+        for (const entry of sessions) if (entry.id === sessionId) return entry.title;
+        return '';
+      })();
+
       const openNative = (view) => {
         const id = firstString(sessionId);
         if (id === '') return;
@@ -8753,6 +8797,54 @@ window.__ModuleLoader__.load({
           ),
         );
 
+      const [probe, setProbe] = React.useState(null);
+      // The embedded native body keys its composer-seat CSS on data-content-phase; the
+      // factory slot may not forward the prop, so stamp it once the session is mounted.
+      React.useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
+        const stamp = () => {
+          const root = document.querySelector('.rl-copilot-native');
+          const content = root === null ? null : root.querySelector('[data-conversation-content]');
+          if (content !== null && content.getAttribute('data-content-phase') !== 'active') {
+            content.setAttribute('data-content-phase', 'active');
+          }
+        };
+        stamp();
+        const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(stamp) : 0;
+        return () => {
+          if (typeof cancelAnimationFrame === 'function' && raf !== 0) cancelAnimationFrame(raf);
+        };
+      }, [attempt, sessionId]);
+      const runLayoutProbe = () => {
+        try {
+          const root = typeof document === 'undefined' ? null : document.querySelector('.rl-copilot-native');
+          const seat = root === null ? null : root.querySelector('[data-composer-seat]');
+          const rows = [];
+          let cursor = seat;
+          for (let guard = 0; cursor !== null && cursor !== undefined && guard < 24; guard += 1) {
+            const style = window.getComputedStyle(cursor);
+            const rect = cursor.getBoundingClientRect();
+            const slot = cursor.getAttribute('data-slot') || cursor.getAttribute('data-conversation-region') || '';
+            rows.push(
+              `${cursor.tagName.toLowerCase()}${slot === '' ? '' : '[' + slot + ']'} | y=${Math.round(rect.top)} h=${Math.round(rect.height)} | client=${cursor.clientHeight} scroll=${cursor.scrollHeight} | pos=${style.position} ovf=${style.overflowY} disp=${style.display} flex=${style.flex} h=${style.height} | ${String(cursor.className).slice(0, 64)}`,
+            );
+            if (root !== null && cursor === root) break;
+            cursor = cursor.parentElement;
+          }
+          const text = [
+            `window=${window.innerWidth}x${window.innerHeight}`,
+            `drawer=${root === null ? 'missing' : Math.round(root.getBoundingClientRect().height)}`,
+            ...rows,
+          ].join('\n');
+          setProbe(text);
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).catch(() => {});
+          }
+        } catch (error) {
+          setProbe('probe failed: ' + describeError(error, t));
+        }
+      };
+
       let body;
       if (phase === 'loading') {
         body = h('div', { className: 'rl-copilot-native-loading' }, h(LabLoading, { label: t('ws.copilot.loading') }));
@@ -8769,7 +8861,7 @@ window.__ModuleLoader__.load({
           h(
             SessionProvider,
             { session: reference },
-            h('div', { className: 'rl-copilot-native-view' }, renderFactorySlot('conversation.content', {})),
+            h('div', { className: 'rl-copilot-native-view' }, renderFactorySlot('conversation.content', { variant: 'embedded', phase: 'active', hero: false })),
           ),
         );
       }
@@ -8784,7 +8876,22 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'rl-copilot-native-head' },
             h('span', { className: 'rl-copilot-native-title' }, t('ws.copilot.nativeTitle')),
+            h(LabSelect, {
+              value: sessionId,
+              ariaLabel: t('ws.copilot.sessionPicker'),
+              options: sessions.length > 0
+                ? sessions.map((entry) => ({ value: entry.id, label: entry.title }))
+                : [{ value: '', label: t('ws.copilot.noSessions') }],
+              onChange: (event) => switchCopilotSession(event.target.value),
+            }),
+            h(LabButton, {
+              label: t('ws.copilot.newSession'),
+              variant: 'ghost',
+              disabled: phase === 'loading',
+              onClick: () => createCopilotSession(),
+            }),
             reused ? h('span', { className: 'rl-chip' }, t('ws.copilot.reused')) : (sessionId !== '' ? h('span', { className: 'rl-chip' }, t('ws.copilot.created')) : null),
+            currentSessionTitle !== '' ? h('span', { className: 'rl-chip' }, currentSessionTitle) : null,
             sessionId !== '' ? h('span', { className: 'rl-chip rl-chip-mono' }, sessionId) : null,
             h('span', { className: 'rl-hint rl-copilot-native-hint' }, t('ws.copilot.embeddedHint')),
             h(LabButton, {
@@ -8799,12 +8906,25 @@ window.__ModuleLoader__.load({
               disabled: sessionId === '',
               onClick: () => openNative('trajectory'),
             }),
+            h(LabButton, {
+              label: t('ws.copilot.layoutProbe'),
+              variant: 'ghost',
+              title: t('ws.copilot.layoutProbeHint'),
+              onClick: runLayoutProbe,
+            }),
             h(LabButton, { label: '✕', variant: 'ghost', title: t('ws.copilot.close'), onClick: onClose }),
           ),
+          probe === null ? null : h('pre', { className: 'rl-copilot-probe', title: 'Click to close', onClick: () => setProbe(null) }, probe),
           h('div', { className: 'rl-copilot-native-body' }, body),
         ),
       );
     }
+
+    // The workspace polls /state and /events every few seconds while a run is
+    // live, which re-renders WorkspaceScreen. Without this memo the embedded
+    // native conversation (the largest DOM subtree in the drawer) is reconciled
+    // on every poll, which makes scrolling and pointer input stutter.
+    const CopilotDrawerMemo = React.memo(CopilotDrawer);
 
     /** Compact live expert-run chip for the workspace top bar. */
     function ExpertChip({ runs, onOpen, t }) {
