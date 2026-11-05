@@ -29,6 +29,7 @@ export const inject = [
   'subprocess',
   'agents',
   'agentPresets',
+  'workspaceRegistry',
   'subagents',
   'agentDefaultModel',
   'llm',

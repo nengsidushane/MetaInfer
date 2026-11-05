@@ -940,6 +940,28 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     agentCtx.tools.register(copilotToolDefinition(projectId));
   }
 
+  async function attachCopilotWorkspace(project, sessionId) {
+    if (!ctx.workspaceRegistry) {
+      return { workspaceId: null, warning: 'Workspace registry is unavailable; Copilot session is preserved without workspace association.' };
+    }
+    const workspace = await ctx.workspaceRegistry.resolveByPath(project.repo.path);
+    if (!workspace) {
+      return { workspaceId: null, warning: `No registered workspace matches "${project.repo.path}"; Copilot session is preserved without workspace association.` };
+    }
+    try {
+      await workspace.attachSession(sessionId);
+    } catch (error) {
+      const failure = new LabError(
+        'copilot_workspace_attach_failed',
+        `Copilot session "${sessionId}" is preserved but could not attach to workspace "${workspace.id}": ${error instanceof Error ? error.message : String(error)}. Resolve the workspace error and retry the same session.`,
+        503,
+      );
+      failure.cause = error;
+      throw failure;
+    }
+    return { workspaceId: workspace.id };
+  }
+
   async function ensureCopilotSession(projectId) {
     if (copilotLocks.has(projectId)) return copilotLocks.get(projectId);
     const task = (async () => {
@@ -950,18 +972,25 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
       const existingId = typeof project.copilotSessionId === 'string' && project.copilotSessionId ? project.copilotSessionId : '';
       if (existingId) {
         const live = copilotHandles.get(existingId) ?? ctx.agents.get(existingId);
-        if (live) return { sessionId: existingId, reused: true };
-        try {
-          const handle = await ctx.agents.resume({
-            resumeSessionId: existingId,
-            agentOptions: model,
-            setup: (agentCtx) => setupCopilot(projectId, agentCtx),
-          });
-          copilotHandles.set(existingId, handle);
-          return { sessionId: existingId, reused: true };
-        } catch {
-          // Session persistence missing/broken: create a fresh Copilot session below.
+        if (!live) {
+          try {
+            const handle = await ctx.agents.resume({
+              resumeSessionId: existingId,
+              agentOptions: model,
+              setup: (agentCtx) => setupCopilot(projectId, agentCtx),
+            });
+            copilotHandles.set(existingId, handle);
+          } catch (error) {
+            const failure = new LabError(
+              'copilot_resume_failed',
+              `Could not resume Copilot session "${existingId}" for project "${projectId}": ${error instanceof Error ? error.message : String(error)}. The existing session is preserved; resolve the resume error and retry.`,
+              503,
+            );
+            failure.cause = error;
+            throw failure;
+          }
         }
+        return { sessionId: existingId, reused: true, ...await attachCopilotWorkspace(project, existingId) };
       }
       const sessionId = newSessionId();
       const handle = await ctx.agents.create({
@@ -978,7 +1007,9 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
         current.updatedAt = Date.now();
         await store.saveProject(current);
       });
-      return { sessionId, reused: false };
+      // Persist the identity before attachment: a failed association must retry
+      // this same session, not create another empty conversation.
+      return { sessionId, reused: false, ...await attachCopilotWorkspace(project, sessionId) };
     })();
     copilotLocks.set(projectId, task);
     try {

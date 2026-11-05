@@ -4050,19 +4050,30 @@ window.__ModuleLoader__.load({
 
     /** Build the native opener bound to the plugin client context (sessions + uiWorkspace). */
     function buildNativeOpener(ctx) {
-      return (sessionId, view, context) => {
+      return async (sessionId, view, context) => {
         const id = firstString(sessionId);
         if (id === '') return { ok: false, error: 'no-session' };
         const scope = context !== null && context !== undefined && typeof context === 'object' ? context : {};
-        markNativeReturnTarget(firstString(scope.projectId), firstString(scope.nodeId));
-        presetConversationView(id, view);
         try {
           let target = id;
           if (ctx !== null && ctx !== undefined && ctx.sessions !== null && ctx.sessions !== undefined && typeof ctx.sessions.subagentAddress === 'function') {
             const address = ctx.sessions.subagentAddress(id);
             if (address !== undefined && address !== null && String(address) !== '') target = address;
           }
+          // Explicit embedded references can outlive a root's catalog row. Native
+          // main scope needs that row; never navigate to a blank main as fallback.
+          const sessions = ctx === null || ctx === undefined ? null : ctx.sessions;
+          if (target === id && sessions !== null && sessions !== undefined && sessions.list !== null && sessions.list !== undefined && typeof sessions.list.getSnapshot === 'function') {
+            const catalogHasSession = () => asObject(asObject(sessions.list.getSnapshot()).byId)[id] !== undefined;
+            if (!catalogHasSession()) {
+              if (typeof sessions.refresh !== 'function') return { ok: false, error: 'session-catalog-unavailable: ' + id };
+              await sessions.refresh();
+              if (!catalogHasSession()) return { ok: false, error: 'session-not-in-catalog: ' + id };
+            }
+          }
           if (ctx !== null && ctx !== undefined && ctx.uiWorkspace !== null && ctx.uiWorkspace !== undefined && typeof ctx.uiWorkspace.openSession === 'function') {
+            markNativeReturnTarget(firstString(scope.projectId), firstString(scope.nodeId));
+            presetConversationView(id, view);
             ctx.uiWorkspace.openSession(target);
             return { ok: true, sessionId: id, target };
           }
@@ -7983,12 +7994,12 @@ window.__ModuleLoader__.load({
         void runNodeCommand(type, nodeId);
       }, [runNodeCommand]);
       /** Open a session in DSH's native conversation (trajectory/chat preset). */
-      const openSessionNative = React.useCallback((sessionId, view, nodeId) => {
+      const openSessionNative = React.useCallback(async (sessionId, view, nodeId) => {
         if (typeof openNativeSession !== 'function') {
           setActionError(t('ws.native.openFailed'));
           return;
         }
-        const result = openNativeSession(
+        const result = await openNativeSession(
           sessionId,
           view === 'chat' ? 'chat' : 'trajectory',
           { projectId, nodeId: typeof nodeId === 'string' ? nodeId : '' },
@@ -8666,6 +8677,7 @@ window.__ModuleLoader__.load({
       const [attempt, setAttempt] = React.useState(0);
       const [sessions, setSessions] = React.useState([]);
       const [parentSessionId, setParentSessionId] = React.useState('');
+      const [nativeError, setNativeError] = React.useState('');
       const referenceRef = React.useRef(null);
       const requestRef = React.useRef({ sessionId: '', create: false });
       const tRef = React.useRef(t);
@@ -8695,6 +8707,7 @@ window.__ModuleLoader__.load({
         setReused(false);
         setReference(null);
         setReason('');
+        setNativeError('');
         (async () => {
           try {
             const body = { type: 'project.copilot', projectId };
@@ -8739,6 +8752,7 @@ window.__ModuleLoader__.load({
               return;
             }
             if (!alive) return;
+            setReason(firstString(record.warning));
             setPhase('ready');
           } catch (error) {
             if (!alive || isAbortError(error)) return;
@@ -8775,11 +8789,19 @@ window.__ModuleLoader__.load({
         return '';
       })();
 
-      const openNative = (view) => {
+      const openNative = async (view) => {
         const id = firstString(sessionId);
         if (id === '') return;
-        if (typeof openNativeSession === 'function') {
-          openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', { projectId, nodeId: '' });
+        setNativeError('');
+        try {
+          if (typeof openNativeSession !== 'function') throw new Error(t('ws.native.openFailed'));
+          const result = await openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', { projectId, nodeId: '' });
+          if (result === null || result === undefined || result.ok !== true) {
+            throw new Error(firstString(asObject(result).error) || t('ws.native.openFailed'));
+          }
+        } catch (error) {
+          const message = describeError(error, t);
+          setNativeError(message === t('ws.native.openFailed') ? message : t('ws.native.openFailed') + ': ' + message);
         }
       };
       const fallbackPanel = (message) =>
@@ -8925,6 +8947,8 @@ window.__ModuleLoader__.load({
             }),
             h(LabButton, { label: '✕', variant: 'ghost', title: t('ws.copilot.close'), onClick: onClose }),
           ),
+          phase === 'ready' && reason !== '' ? h('p', { className: 'rl-muted', role: 'status', style: { margin: 0, padding: '8px 14px' } }, reason) : null,
+          nativeError === '' ? null : h('p', { className: 'rl-error-text', role: 'alert', style: { margin: 0, padding: '8px 14px' } }, nativeError),
           probe === null ? null : h('pre', { className: 'rl-copilot-probe', title: 'Click to close', onClick: () => setProbe(null) }, probe),
           h('div', { className: 'rl-copilot-native-body' }, body),
         ),
