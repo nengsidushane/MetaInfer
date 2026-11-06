@@ -1387,6 +1387,14 @@ window.__ModuleLoader__.load({
       'ws.copilot.failed': '错误',
       'ws.copilot.nativeTitle': '项目 Copilot（原生会话）',
       'ws.copilot.session': 'Session',
+      'ws.copilot.conversations': '项目对话',
+      'ws.copilot.newSession': '新建对话',
+      'ws.copilot.noSessions': '暂无项目对话',
+      'ws.copilot.privateSession': '私有子会话',
+      'ws.copilot.privateSessionHint': '新建的项目私有子会话，不作为 DSH 根会话显示。',
+      'ws.copilot.legacySession': '旧会话 · DSH 可见',
+      'ws.copilot.legacySessionHint': '保留原始 ID；仍可继续发送，并保持在 DSH 会话列表中可见。',
+      'ws.copilot.invalidAddress': '原生私有会话地址不完整，请重试。',
       'ws.copilot.loading': '正在准备原生 Copilot 会话…',
       'ws.copilot.loadError': '原生 Copilot 会话不可用',
       'ws.copilot.embedUnavailable': '当前运行时不支持嵌入原生会话，请在 DSH 原生窗口中打开。',
@@ -2697,6 +2705,14 @@ window.__ModuleLoader__.load({
       'ws.copilot.failed': 'Error',
       'ws.copilot.nativeTitle': 'Project Copilot (native session)',
       'ws.copilot.session': 'Session',
+      'ws.copilot.conversations': 'Project conversations',
+      'ws.copilot.newSession': 'New conversation',
+      'ws.copilot.noSessions': 'No project conversations yet',
+      'ws.copilot.privateSession': 'Private child',
+      'ws.copilot.privateSessionHint': 'A new project-private child conversation, not a DSH root session.',
+      'ws.copilot.legacySession': 'Legacy · DSH visible',
+      'ws.copilot.legacySessionHint': 'Keeps its original ID, can still send messages, and remains visible in the DSH session list.',
+      'ws.copilot.invalidAddress': 'The native private-session address is incomplete; retry to recover.',
       'ws.copilot.loading': 'Preparing the native Copilot session…',
       'ws.copilot.loadError': 'The native Copilot session is unavailable',
       'ws.copilot.embedUnavailable': 'This runtime cannot embed a native session; open it in a DSH native window instead.',
@@ -2879,10 +2895,24 @@ window.__ModuleLoader__.load({
       '.rl-copilot-native-backdrop { position: fixed; inset: 0; z-index: 59; background: var(--dsw-alias-bg-mask-2, transparent); pointer-events: auto; }',
       '.rl-copilot-native { position: relative; z-index: 60; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; width: min(96vw, calc(100vw - 32px)); max-width: calc(100vw - 32px); height: min(96vh, calc(100vh - 32px)); height: min(96vh, calc(100dvh - 32px)); max-height: calc(100vh - 32px); margin: auto; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 0; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-family: inherit; font-size: 13px; line-height: 20px; pointer-events: auto; overflow: hidden; }',
       '.rl-copilot-native-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px; flex: none; padding: 10px 14px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }',
+      '.rl-copilot-native-head .rl-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
       '.rl-copilot-native-title { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 500; line-height: 20px; }',
       '.rl-copilot-native-hint { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-      '.rl-copilot-native-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }',
-      '.rl-copilot-native-view { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }',
+      '.rl-copilot-native-workspace { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }',
+      '.rl-copilot-sidebar { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 220px; width: 220px; min-width: 0; min-height: 0; border-right: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); overflow: hidden; }',
+      '.rl-copilot-sidebar-head { display: flex; flex-direction: column; gap: 8px; flex: none; min-width: 0; padding: 10px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }',
+      '.rl-copilot-sidebar-head .rl-btn { border-radius: 0; padding-inline: 6px; width: 100%; }',
+      '.rl-copilot-sidebar-title { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }',
+      '.rl-copilot-sidebar-list { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; overflow-y: auto; overflow-x: hidden; }',
+      '.rl-copilot-sidebar-row { box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex: none; width: 100%; min-width: 0; padding: 8px; border: 0; border-radius: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; line-height: 18px; text-align: left; cursor: pointer; }',
+      '.rl-copilot-sidebar-row:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); }',
+      '.rl-copilot-sidebar-row[aria-current="true"] { background: var(--dsw-alias-bg-layer-2); box-shadow: inset 2px 0 0 var(--dsw-alias-brand-primary); }',
+      '.rl-copilot-sidebar-row:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }',
+      '.rl-copilot-sidebar-row:disabled { opacity: 0.6; cursor: wait; }',
+      '.rl-copilot-sidebar-row-title { display: block; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+      '.rl-copilot-sidebar-kind { color: var(--dsw-alias-label-tertiary); font-size: 10.5px; line-height: 16px; overflow-wrap: anywhere; }',
+      '.rl-copilot-native-body { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }',
+      '.rl-copilot-native-view { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }',
       '.rl-copilot-native-view > [data-conversation-content] { flex: 1 1 auto; min-height: 0; height: 100%; }',
       '.rl-copilot-native-view [data-conversation-scroll] { flex: 1 1 auto; min-height: 0; overflow-y: auto !important; justify-content: flex-start !important; }',
       '.rl-copilot-native-view [data-composer-seat] { position: sticky !important; inset-block-end: 0 !important; inset-inline: 0 !important; z-index: 8; flex: 0 0 auto !important; background: var(--dsw-alias-bg-layer-1); }',
@@ -3196,7 +3226,7 @@ window.__ModuleLoader__.load({
       '.rl-push-stdout { margin: 0; max-height: 160px; overflow: auto; padding: 6px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-family: ' + MONO + '; font-size: 11px; line-height: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }',
       '@media (max-width: 1180px) { .rl-workspace-grid { grid-template-columns: 210px minmax(0, 1fr) 300px; } }',
       '@media (max-width: 980px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr) minmax(250px, 30vw); } .rl-rail { display: none; } }',
-      '@media (max-width: 760px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(170px, 42vh); overflow: auto; } .rl-inspector { grid-column: 1; grid-row: 2; max-height: 42vh; border-left: 0; border-top: 0.5px solid var(--dsw-alias-border-l2); } .rl-canvas { min-height: 260px; } .rl-copilot-native-layer { padding: 8px; } .rl-copilot-native { width: calc(100vw - 16px); max-width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100vh - 16px); border-radius: 0; } .rl-copilot-native-head { padding: 8px 10px; } .rl-copilot-native-hint { flex: 1 1 100%; margin-left: 0; white-space: normal; } }',
+      '@media (max-width: 760px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(170px, 42vh); overflow: auto; } .rl-inspector { grid-column: 1; grid-row: 2; max-height: 42vh; border-left: 0; border-top: 0.5px solid var(--dsw-alias-border-l2); } .rl-canvas { min-height: 260px; } .rl-copilot-native-layer { padding: 8px; } .rl-copilot-native { width: calc(100vw - 16px); max-width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100vh - 16px); border-radius: 0; } .rl-copilot-native-head { padding: 8px 10px; } .rl-copilot-native-hint { flex: 1 1 100%; margin-left: 0; white-space: normal; } .rl-copilot-sidebar { flex-basis: 130px; width: 130px; } .rl-copilot-sidebar-head { padding: 8px 6px; } .rl-copilot-sidebar-row { padding: 7px 6px; } }',
       '@media (max-width: 640px) { .rl-settings-model-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-settings-model-role { grid-column: 1 / -1; padding: 0; } .rl-reviewer-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-model-option-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-config-device-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-config-grid, .rl-config-grid-3 { grid-template-columns: minmax(0, 1fr); } .rl-reviewer-row .rl-reviewer-actions, .rl-model-option-row > :last-child { grid-column: 1 / -1; } .rl-drawer { width: 100%; min-width: 0; } .rl-modal, .rl-modal-wide, .rl-modal-narrow { width: 100%; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); } .rl-modal-body { padding: 10px 12px; } .rl-modal-head, .rl-modal-foot { padding: 10px 12px; } .rl-log-row, .rl-log-row-btn { grid-template-columns: 46px 62px minmax(0, 1fr); gap: 6px; font-size: 11px; } .rl-topbar { padding: 8px 10px; } .rl-workspace-grid { grid-template-rows: minmax(0, 1fr) minmax(190px, 46vh); } .rl-inspector { max-height: 46vh; } }',
       '@media (max-width: 420px) { .rl-settings-model-row, .rl-reviewer-row, .rl-model-option-row, .rl-config-device-row { grid-template-columns: minmax(0, 1fr); } .rl-reviewer-row .rl-reviewer-actions, .rl-model-option-row > :last-child { grid-column: auto; } .rl-node-actions { opacity: 1; } .rl-canvas-hint { display: none; } }',
       '.rl-guide-layer { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: clamp(8px, 2vw, 24px); pointer-events: none; }',
@@ -4110,8 +4140,12 @@ window.__ModuleLoader__.load({
         if (id === '') return { ok: false, error: 'no-session' };
         const scope = context !== null && context !== undefined && typeof context === 'object' ? context : {};
         try {
+          const parentSessionId = firstString(scope.parentSessionId);
           let target = id;
-          if (ctx !== null && ctx !== undefined && ctx.sessions !== null && ctx.sessions !== undefined && typeof ctx.sessions.subagentAddress === 'function') {
+          if (parentSessionId !== '') {
+            if (scope.mode !== 'continuable') return { ok: false, error: 'invalid-private-session-mode' };
+            target = { parentSessionId, childSessionId: id, mode: 'continuable' };
+          } else if (ctx !== null && ctx !== undefined && ctx.sessions !== null && ctx.sessions !== undefined && typeof ctx.sessions.subagentAddress === 'function') {
             const address = ctx.sessions.subagentAddress(id);
             if (address !== undefined && address !== null && String(address) !== '') target = address;
           }
@@ -4129,7 +4163,7 @@ window.__ModuleLoader__.load({
           if (ctx !== null && ctx !== undefined && ctx.uiWorkspace !== null && ctx.uiWorkspace !== undefined && typeof ctx.uiWorkspace.openSession === 'function') {
             markNativeReturnTarget(firstString(scope.projectId), firstString(scope.nodeId));
             presetConversationView(id, view);
-            ctx.uiWorkspace.openSession(target);
+            await ctx.uiWorkspace.openSession(target);
             return { ok: true, sessionId: id, target };
           }
           return { ok: false, error: 'ui-workspace-unavailable' };
@@ -8632,6 +8666,7 @@ window.__ModuleLoader__.load({
         h(ActivityLog, { events, onSelectNode: setSelectedId, onOpenRun: openRuns, t }),
         copilotOpen
           ? h(CopilotDrawerMemo, {
+              key: projectId,
               projectId,
               onClose: closeCopilot,
               openNativeSession,
@@ -8799,7 +8834,14 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Large drawer hosting the persistent native Copilot Conversation (or a native fallback). */
+    // Only unresolved create-action tokens live here; conversation history/MRU stay Host-owned.
+    const copilotCreateRequests = new Map();
+    function copilotCreateRequestId() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return 'copilot-' + crypto.randomUUID();
+      return 'copilot-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 14) + '-' + Math.random().toString(36).slice(2, 14);
+    }
+
+    /** Large drawer hosting one native Copilot Conversation and its project-specific list. */
     function CopilotDrawer({ projectId, onClose, openNativeSession, retainCopilotSession, SessionProvider, renderFactorySlot, t }) {
       const [phase, setPhase] = React.useState('loading');
       const [sessionId, setSessionId] = React.useState('');
@@ -8811,7 +8853,10 @@ window.__ModuleLoader__.load({
       const [parentSessionId, setParentSessionId] = React.useState('');
       const [nativeError, setNativeError] = React.useState('');
       const referenceRef = React.useRef(null);
-      const requestRef = React.useRef({ sessionId: '', create: false });
+      const requestRef = React.useRef({ projectId, sessionId: '', create: false });
+      const pendingRef = React.useRef(false);
+      const generationRef = React.useRef(0);
+      const mountedRef = React.useRef(true);
       const tRef = React.useRef(t);
       tRef.current = t;
       const retainRef = React.useRef(retainCopilotSession);
@@ -8831,12 +8876,34 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         let alive = true;
+        let retained = null;
+        const controller = new AbortController();
+        const generation = ++generationRef.current;
+        const current = () => alive && generationRef.current === generation && !controller.signal.aborted;
+        const release = () => {
+          const ref = retained;
+          retained = null;
+          if (referenceRef.current === ref) referenceRef.current = null;
+          if (ref !== null && ref !== undefined && typeof ref.release === 'function') {
+            try {
+              ref.release();
+            } catch (error) {
+              // release is best-effort
+            }
+          }
+        };
+        mountedRef.current = true;
+        pendingRef.current = true;
         loadCountRef.current += 1;
-        const request = requestRef.current && typeof requestRef.current === 'object' ? requestRef.current : {};
-        requestRef.current = { sessionId: '', create: false };
+        if (requestRef.current.projectId !== projectId) {
+          requestRef.current = { projectId, sessionId: '', create: false };
+          setSessions([]);
+          setSessionId('');
+          setParentSessionId('');
+          setReused(false);
+        }
+        const request = requestRef.current;
         setPhase('loading');
-        setSessionId('');
-        setReused(false);
         setReference(null);
         setReason('');
         setNativeError('');
@@ -8844,78 +8911,98 @@ window.__ModuleLoader__.load({
           try {
             const body = { type: 'project.copilot', projectId };
             if (firstString(request.sessionId) !== '') body.sessionId = firstString(request.sessionId);
-            if (request.create === true) body.create = true;
-            const data = await api.command(body, undefined, tRef.current);
-            if (!alive) return;
+            if (request.create === true) {
+              body.create = true;
+              body.requestId = request.requestId;
+            }
+            const data = await api.command(body, controller.signal, tRef.current);
+            if (!current()) return;
             const record = asObject(data);
             const id = firstString(record.sessionId);
-            const isReused = record.reused === true;
-            const parent = firstString(record.parentSessionId);
+            if (id === '' || (firstString(record.projectId) !== '' && record.projectId !== projectId)
+              || (firstString(request.sessionId) !== '' && id !== request.sessionId)) {
+              throw new Error(tRef.current('ws.copilot.loadError'));
+            }
+            const parent = record.private === true ? firstString(record.parentSessionId) : '';
+            if (record.private === true && (parent === '' || record.mode !== 'continuable')) {
+              throw new Error(tRef.current('ws.copilot.invalidAddress'));
+            }
             const list = asArray(record.sessions)
-              .filter((entry) => entry !== null && typeof entry === 'object' && firstString(entry.id) !== '' && entry.private !== false)
+              .filter((entry) => entry !== null && typeof entry === 'object' && firstString(entry.id) !== '')
               .map((entry) => ({
                 id: firstString(entry.id),
                 title: firstString(entry.title) || firstString(entry.id),
+                private: entry.private === true,
               }));
+            requestRef.current = { projectId, sessionId: id, create: false };
+            if (request.create === true && copilotCreateRequests.get(projectId) === request.requestId) copilotCreateRequests.delete(projectId);
             setSessions(list);
             setParentSessionId(parent);
-            if (id === '') {
-              setPhase('fallback');
-              setReason(tRef.current('ws.copilot.loadError'));
-              return;
-            }
             setSessionId(id);
-            setReused(isReused);
+            setReused(record.reused === true);
             const retain = retainRef.current;
-            const ref = typeof retain === 'function' ? retain(id, parent, attempt) : null;
+            const ref = typeof retain === 'function' ? retain(id, parent) : null;
             if (ref === null || ref === undefined) {
               setPhase('fallback');
               setReason(tRef.current('ws.copilot.embedUnavailable'));
               return;
             }
+            retained = ref;
             referenceRef.current = ref;
             setReference(ref);
             try {
               await Promise.resolve(ref.ready);
             } catch (error) {
-              if (!alive) return;
+              if (!current()) return;
+              release();
+              setReference(null);
               setPhase('fallback');
               setReason(tRef.current('ws.copilot.embedFailed') + ': ' + describeError(error, tRef.current));
               return;
             }
-            if (!alive) return;
+            if (!current()) return;
             setReason(firstString(record.warning));
             setPhase('ready');
           } catch (error) {
-            if (!alive || isAbortError(error)) return;
+            if (!current()) return;
             setPhase('fallback');
             setReason(describeError(error, tRef.current));
+          } finally {
+            if (current()) pendingRef.current = false;
           }
         })();
         return () => {
           alive = false;
-          const current = referenceRef.current;
-          referenceRef.current = null;
-          if (current !== null && current !== undefined && typeof current.release === 'function') {
-            try {
-              current.release();
-            } catch (error) {
-              // release is best-effort
-            }
-          }
+          mountedRef.current = false;
+          controller.abort();
+          release();
+          if (generationRef.current === generation) pendingRef.current = false;
         };
       }, [projectId, attempt]);
 
+      const queueCopilotRequest = (request) => {
+        if (pendingRef.current || !mountedRef.current) return;
+        pendingRef.current = true;
+        generationRef.current += 1;
+        requestRef.current = request;
+        setPhase('loading');
+        setAttempt((value) => value + 1);
+      };
       const switchCopilotSession = (nextId) => {
         const id = firstString(nextId);
-        if (id === '' || id === sessionId) return;
-        requestRef.current = { sessionId: id, create: false };
-        setAttempt((value) => value + 1);
+        if (id === '' || (id === sessionId && phase === 'ready')) return;
+        queueCopilotRequest({ projectId, sessionId: id, create: false });
       };
       const createCopilotSession = () => {
-        requestRef.current = { sessionId: '', create: true };
-        setAttempt((value) => value + 1);
+        if (pendingRef.current || !mountedRef.current) return;
+        let requestId = copilotCreateRequests.get(projectId);
+        if (requestId === undefined) {
+          requestId = copilotCreateRequestId();
+          copilotCreateRequests.set(projectId, requestId);
+        }
+        queueCopilotRequest({ projectId, sessionId: '', create: true, requestId });
       };
+      const retryCopilotSession = () => queueCopilotRequest(requestRef.current);
       const currentSessionTitle = (() => {
         for (const entry of sessions) if (entry.id === sessionId) return entry.title;
         return '';
@@ -8923,15 +9010,20 @@ window.__ModuleLoader__.load({
 
       const openNative = async (view) => {
         const id = firstString(sessionId);
-        if (id === '') return;
+        if (id === '' || pendingRef.current || !mountedRef.current) return;
+        const generation = generationRef.current;
         setNativeError('');
         try {
           if (typeof openNativeSession !== 'function') throw new Error(t('ws.native.openFailed'));
-          const result = await openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', { projectId, nodeId: '' });
+          const result = await openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', {
+            projectId, nodeId: '', parentSessionId: parentSessionId || null, mode: parentSessionId === '' ? null : 'continuable',
+          });
+          if (!mountedRef.current || generationRef.current !== generation) return;
           if (result === null || result === undefined || result.ok !== true) {
             throw new Error(firstString(asObject(result).error) || t('ws.native.openFailed'));
           }
         } catch (error) {
+          if (!mountedRef.current || generationRef.current !== generation) return;
           const message = describeError(error, t);
           setNativeError(message === t('ws.native.openFailed') ? message : t('ws.native.openFailed') + ': ' + message);
         }
@@ -8949,15 +9041,15 @@ window.__ModuleLoader__.load({
             h(LabButton, {
               label: t('ws.copilot.openNative'),
               variant: 'primary',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('chat'),
             }),
             h(LabButton, {
               label: t('ws.copilot.openTrajectory'),
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('trajectory'),
             }),
-            h(LabButton, { label: t('ws.copilot.retry'), variant: 'ghost', onClick: () => setAttempt((value) => value + 1) }),
+            h(LabButton, { label: t('ws.copilot.retry'), variant: 'ghost', disabled: phase === 'loading', onClick: retryCopilotSession }),
           ),
         );
 
@@ -9041,20 +9133,6 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'rl-copilot-native-head' },
             h('span', { className: 'rl-copilot-native-title' }, t('ws.copilot.nativeTitle')),
-            h(LabSelect, {
-              value: sessionId,
-              ariaLabel: t('ws.copilot.sessionPicker'),
-              options: sessions.length > 0
-                ? sessions.map((entry) => ({ value: entry.id, label: entry.title }))
-                : [{ value: '', label: t('ws.copilot.noSessions') }],
-              onChange: (event) => switchCopilotSession(event.target.value),
-            }),
-            h(LabButton, {
-              label: t('ws.copilot.newSession'),
-              variant: 'ghost',
-              disabled: phase === 'loading',
-              onClick: () => createCopilotSession(),
-            }),
             reused ? h('span', { className: 'rl-chip' }, t('ws.copilot.reused')) : (sessionId !== '' ? h('span', { className: 'rl-chip' }, t('ws.copilot.created')) : null),
             currentSessionTitle !== '' ? h('span', { className: 'rl-chip' }, currentSessionTitle) : null,
             sessionId !== '' ? h('span', { className: 'rl-chip rl-chip-mono' }, sessionId) : null,
@@ -9062,13 +9140,13 @@ window.__ModuleLoader__.load({
             h(LabButton, {
               label: t('ws.copilot.openNative'),
               variant: 'ghost',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('chat'),
             }),
             h(LabButton, {
               label: t('ws.copilot.openTrajectory'),
               variant: 'ghost',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('trajectory'),
             }),
             h(LabButton, {
@@ -9082,7 +9160,45 @@ window.__ModuleLoader__.load({
           phase === 'ready' && reason !== '' ? h('p', { className: 'rl-muted', role: 'status', style: { margin: 0, padding: '8px 14px' } }, reason) : null,
           nativeError === '' ? null : h('p', { className: 'rl-error-text', role: 'alert', style: { margin: 0, padding: '8px 14px' } }, nativeError),
           probe === null ? null : h('pre', { className: 'rl-copilot-probe', title: 'Click to close', onClick: () => setProbe(null) }, probe),
-          h('div', { className: 'rl-copilot-native-body' }, body),
+          h(
+            'div',
+            { className: 'rl-copilot-native-workspace' },
+            h(
+              'aside',
+              { className: 'rl-copilot-sidebar', 'aria-label': t('ws.copilot.conversations') },
+              h(
+                'div',
+                { className: 'rl-copilot-sidebar-head' },
+                h('span', { className: 'rl-copilot-sidebar-title' }, t('ws.copilot.conversations')),
+                h(LabButton, { label: t('ws.copilot.newSession'), variant: 'ghost', disabled: phase === 'loading', onClick: createCopilotSession }),
+              ),
+              h(
+                'div',
+                { className: 'rl-copilot-sidebar-list', 'aria-busy': phase === 'loading' },
+                sessions.length === 0
+                  ? h('p', { className: 'rl-empty-note' }, t('ws.copilot.noSessions'))
+                  : sessions.map((entry) => h(
+                      'button',
+                      {
+                        key: entry.id,
+                        type: 'button',
+                        className: 'rl-copilot-sidebar-row',
+                        'data-session-id': entry.id,
+                        'aria-current': entry.id === sessionId ? 'true' : undefined,
+                        title: entry.title + '\n' + entry.id,
+                        disabled: phase === 'loading',
+                        onClick: () => switchCopilotSession(entry.id),
+                      },
+                      h('span', { className: 'rl-copilot-sidebar-row-title' }, entry.title),
+                      h('span', {
+                        className: 'rl-copilot-sidebar-kind',
+                        title: t(entry.private ? 'ws.copilot.privateSessionHint' : 'ws.copilot.legacySessionHint'),
+                      }, t(entry.private ? 'ws.copilot.privateSession' : 'ws.copilot.legacySession')),
+                    )),
+              ),
+            ),
+            h('div', { className: 'rl-copilot-native-body' }, body),
+          ),
         ),
       );
     }
@@ -9098,7 +9214,8 @@ window.__ModuleLoader__.load({
         && previous.openNativeSession === next.openNativeSession
         && previous.retainCopilotSession === next.retainCopilotSession
         && previous.SessionProvider === next.SessionProvider
-        && previous.renderFactorySlot === next.renderFactorySlot,
+        && previous.renderFactorySlot === next.renderFactorySlot
+        && previous.t === next.t,
     );
 
     /** Compact live expert-run chip for the workspace top bar. */
@@ -14823,13 +14940,16 @@ window.__ModuleLoader__.load({
         const t = ctx.locale.bind(NS);
         const openNativeSession = buildNativeOpener(ctx);
         /** Retain the persistent Copilot session for an embedded native Conversation. */
-        const retainCopilotSession = (sessionId) => {
+        const retainCopilotSession = (sessionId, parentSessionId) => {
           const id = firstString(sessionId);
+          const parent = firstString(parentSessionId);
           if (id === '') return null;
           try {
             if (ctx.sessions === null || ctx.sessions === undefined || typeof ctx.sessions.retain !== 'function') return null;
             let target = id;
-            if (typeof ctx.sessions.subagentAddress === 'function') {
+            if (parent !== '') {
+              target = { parentSessionId: parent, childSessionId: id, mode: 'continuable' };
+            } else if (typeof ctx.sessions.subagentAddress === 'function') {
               const address = ctx.sessions.subagentAddress(id);
               if (address !== undefined && address !== null && String(address) !== '') target = address;
             }

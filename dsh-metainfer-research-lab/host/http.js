@@ -211,7 +211,9 @@ export function registerHttpRoutes(ctx, service, extras = {}) {
       return ok(await service.clearProjectChat(body.projectId));
     }
     if (type === 'project.copilot') {
-      return ok(await service.openCopilot(body.projectId));
+      return ok(await service.openCopilot(body.projectId, Object.fromEntries(
+        ['sessionId', 'create', 'requestId', 'title'].filter((key) => body[key] !== undefined).map((key) => [key, body[key]]),
+      )));
     }
     if (type === 'project.compile_placement') {
       return ok(await service.compilePlacementPolicyForProject(body.projectId, body.text));
