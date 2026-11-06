@@ -10,6 +10,7 @@ import { buildModelCatalog, cleanModelRef, resolveModelSelection, validateModelS
 import { compilePlacementPolicy, describePlacementSpec, sanitizePlacementSpec } from './placement.js';
 import { DEFAULT_ADVISOR_PROMPT, DEFAULT_SCHEDULER_PROMPT, DEFAULT_WORKER_PREFIX, PROMPT_PLACEHOLDERS } from './prompts.js';
 import { newProjectId, newSessionId } from './store.js';
+import { createCopilotService } from './copilot.js';
 
 const MAX_TIMEOUT_MINUTES = 1440;
 
@@ -418,6 +419,18 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     return git.validateRepo(repoPath);
   }
 
+  async function prepareRepo(repoPath) {
+    return git.validateRepo(repoPath, { prepare: true });
+  }
+
+  async function gitStatus() {
+    return git.gitStatus();
+  }
+
+  async function installGit(options) {
+    return git.installGit({ confirmed: options?.confirmed === true });
+  }
+
   async function createProject(input) {
     const name = text(input?.name, 'name', { required: true, max: 120 });
     const brief = text(input?.brief, 'brief', { required: true, max: 8000 });
@@ -425,9 +438,7 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     if (initialPrompt.length < 10) throw new LabError('bad_request', 'initialPrompt must be at least 10 characters');
     const repoPath = text(input?.repoPath, 'repoPath', { required: true, max: 4096 });
 
-    const repo = await git.validateRepo(repoPath);
-    const baseBranch = text(input?.baseBranch, 'baseBranch', { max: 256 }) || repo.defaultBranch;
-    const baseCommit = await git.resolveBranch(repo.repoRoot, baseBranch);
+    const requestedBranch = text(input?.baseBranch, 'baseBranch', { max: 256 });
     const config = normalizeConfig(input?.config);
     let rootNeeds = {};
     if (input?.needs !== undefined) {
@@ -435,6 +446,9 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
       if (checked.error) throw new LabError('bad_request', checked.error, 400);
       rootNeeds = checked.needs;
     }
+    const repo = await prepareRepo(repoPath);
+    const baseBranch = requestedBranch || repo.defaultBranch;
+    const baseCommit = await git.resolveBranch(repo.repoRoot, baseBranch);
 
     const projectId = newProjectId();
     const now = Date.now();
@@ -870,14 +884,9 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
   }
 
   // ---------------------------------------------------------------------------
-  // Persistent project Copilot session: a root lab-chat agent with a scoped,
-  // read-only project-context tool. The Client embeds the native DSH
-  // Conversation for this session in a large drawer, so history/trajectory/live
-  // thinking are native while the agent still has full project visibility.
+  // Project Copilot conversations retain legacy roots and create private,
+  // continuable children. Native DSH owns all transcript and turn state.
   // ---------------------------------------------------------------------------
-  const copilotHandles = new Map(); // sessionId -> AgentHandle
-  const copilotLocks = new Map(); // projectId -> Promise
-
   async function copilotContext(projectId, input = {}) {
     const action = typeof input?.action === 'string' ? input.action : 'snapshot';
     if (action === 'state') return getState(projectId);
@@ -935,116 +944,13 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     };
   }
 
-  async function setupCopilot(projectId, agentCtx) {
-    await ctx.agentPresets.mount(agentCtx, 'lab-chat');
-    agentCtx.tools.register(copilotToolDefinition(projectId));
+  function copilotInput(input) {
+    return Object.fromEntries(
+      ['sessionId', 'create', 'requestId', 'title'].filter((key) => input?.[key] !== undefined).map((key) => [key, input[key]]),
+    );
   }
 
-  async function attachCopilotWorkspace(project, sessionId) {
-    if (!ctx.workspaceRegistry) {
-      return { workspaceId: null, warning: 'Workspace registry is unavailable; Copilot session is preserved without workspace association.' };
-    }
-    const workspace = await ctx.workspaceRegistry.resolveByPath(project.repo.path);
-    if (!workspace) {
-      return { workspaceId: null, warning: `No registered workspace matches "${project.repo.path}"; Copilot session is preserved without workspace association.` };
-    }
-    try {
-      await workspace.attachSession(sessionId);
-    } catch (error) {
-      const failure = new LabError(
-        'copilot_workspace_attach_failed',
-        `Copilot session "${sessionId}" is preserved but could not attach to workspace "${workspace.id}": ${error instanceof Error ? error.message : String(error)}. Resolve the workspace error and retry the same session.`,
-        503,
-      );
-      failure.cause = error;
-      throw failure;
-    }
-    return { workspaceId: workspace.id };
-  }
-
-  async function ensureCopilotSession(projectId) {
-    if (copilotLocks.has(projectId)) return copilotLocks.get(projectId);
-    const task = (async () => {
-      const project = requireProject(projectId);
-      // A resumed root agent must be given agentOptions again: agentOptions are
-      // resume-time inputs and are not reconstructed from the persisted session.
-      const model = resolveModelSelection(ctx, project, null, 'controller');
-      const existingId = typeof project.copilotSessionId === 'string' && project.copilotSessionId ? project.copilotSessionId : '';
-      if (existingId) {
-        const live = copilotHandles.get(existingId) ?? ctx.agents.get(existingId);
-        if (!live) {
-          try {
-            const handle = await ctx.agents.resume({
-              resumeSessionId: existingId,
-              agentOptions: model,
-              setup: (agentCtx) => setupCopilot(projectId, agentCtx),
-            });
-            copilotHandles.set(existingId, handle);
-          } catch (error) {
-            const failure = new LabError(
-              'copilot_resume_failed',
-              `Could not resume Copilot session "${existingId}" for project "${projectId}": ${error instanceof Error ? error.message : String(error)}. The existing session is preserved; resolve the resume error and retry.`,
-              503,
-            );
-            failure.cause = error;
-            throw failure;
-          }
-        }
-        return { sessionId: existingId, reused: true, ...await attachCopilotWorkspace(project, existingId) };
-      }
-      const sessionId = newSessionId();
-      const handle = await ctx.agents.create({
-        sessionId,
-        meta: { cwd: project.repo.path, agentPreset: 'lab-chat' },
-        agentOptions: model,
-        setup: (agentCtx) => setupCopilot(projectId, agentCtx),
-      });
-      copilotHandles.set(sessionId, handle);
-      await store.withProjectLock(projectId, async () => {
-        const current = requireProject(projectId);
-        current.copilotSessionId = sessionId;
-        current.revision = (current.revision ?? 0) + 1;
-        current.updatedAt = Date.now();
-        await store.saveProject(current);
-      });
-      // Persist the identity before attachment: a failed association must retry
-      // this same session, not create another empty conversation.
-      return { sessionId, reused: false, ...await attachCopilotWorkspace(project, sessionId) };
-    })();
-    copilotLocks.set(projectId, task);
-    try {
-      return await task;
-    } finally {
-      copilotLocks.delete(projectId);
-    }
-  }
-
-  async function getCopilot(projectId) {
-    const project = requireProject(projectId);
-    return {
-      projectId,
-      sessionId: project.copilotSessionId ?? null,
-    };
-  }
-
-  async function openCopilot(projectId) {
-    const result = await ensureCopilotSession(projectId);
-    return { ...result, projectId };
-  }
-
-  // Dispose live Copilot agent handles with the plugin fiber.
-  if (typeof ctx.effect === 'function') {
-    ctx.effect(() => () => {
-      for (const handle of copilotHandles.values()) {
-        try {
-          handle.dispose?.();
-        } catch {
-          // best-effort
-        }
-      }
-      copilotHandles.clear();
-    }, 'metainfer-research-lab: copilot sessions');
-  }
+  const { openCopilot, getCopilot } = createCopilotService({ ctx, store, orchestrator, requireProject, toolDefinition: copilotToolDefinition });
 
   async function getChat(projectId) {
     const project = requireProject(projectId);
@@ -1399,7 +1305,7 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     if (action === 'run') return getRun(input?.projectId, input?.runId);
     if (action === 'chat') return projectChat(input?.projectId, input?.text);
     if (action === 'clear_chat') return clearProjectChat(input?.projectId);
-    if (action === 'copilot') return openCopilot(input?.projectId);
+    if (action === 'copilot') return openCopilot(input?.projectId, copilotInput(input));
     throw new LabError('unknown_command', `unknown metainfer_lab action: ${String(action)}`, 400);
   }
 
@@ -1420,6 +1326,9 @@ export function createLabService({ ctx, store, git, runtime, transcript, orchest
     health,
     listProjects,
     validateRepo,
+    prepareRepo,
+    gitStatus,
+    installGit,
     createProject,
     getState,
     getEvents,

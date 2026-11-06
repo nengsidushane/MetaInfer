@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -150,11 +150,10 @@ await test('validateRepo(relative path) is rejected', async () => {
   await assert.rejects(() => git.validateRepo('relative/path'), (error) => error.code === 'bad_path');
 });
 
-await test('validateRepo(missing path) is rejected with bad_path', async () => {
-  await assert.rejects(
-    () => git.validateRepo(path.join(os.tmpdir(), 'mirl-missing-repo')),
-    (error) => error.code === 'bad_path',
-  );
+await test('validateRepo(missing path) is rejected without creating a directory', async () => {
+  const missing = path.join(NON_REPO_DIR, 'missing-repo');
+  await assert.rejects(() => git.validateRepo(missing), (error) => error.code === 'not_git');
+  await assert.rejects(() => stat(missing), (error) => error.code === 'ENOENT');
 });
 
 await test('GitHub tree URL normalises to the repository clone URL', () => {
@@ -183,12 +182,13 @@ await test('branch hint resolves to the longest matching branch', () => {
   assert.equal(matchBranchHint(branches, 'missing'), '');
 });
 
-await test('validateRepo(remote URL) clones once and reuses the checkout', async () => {
+await test('validateRepo(remote URL) requires explicit preparation and reuses the checkout', async () => {
   const url = pathToFileURL(REMOTE_SOURCE_REPO).href;
-  const first = await git.validateRepo(url);
+  await assert.rejects(() => git.validateRepo(url), (error) => error.code === 'repo_setup_required');
+  const first = await git.validateRepo(url, { prepare: true });
   const managedRoot = path.join(TEST_DSH_HOME, 'metainfer-research-lab', 'repos');
   assert.ok(first.repoRoot.replace(/\\/g, '/').toLowerCase().startsWith(managedRoot.replace(/\\/g, '/').toLowerCase()));
-  assert.ok(path.basename(first.repoRoot).startsWith('mirl-remote-'));
+  assert.match(path.basename(first.repoRoot), /^[a-f0-9]{64}$/);
   assert.equal(first.remoteUrl, url);
   assert.ok(first.branches.includes('main'));
   const second = await git.validateRepo(url);
@@ -455,14 +455,16 @@ async function callHttp(pathname, { method = 'GET', query = '', rawBody = undefi
   return response.json();
 }
 
-await test('routes: all eighteen endpoints registered', async () => {
-  assert.equal(routes.length, 18);
+await test('routes: all twenty endpoints registered', async () => {
+  assert.equal(routes.length, 20);
   const expected = [
     [`${PREFIX}/health`, 'GET'],
     [`${PREFIX}/native-attention`, 'POST'],
     [`${PREFIX}/projects`, 'GET'],
     [`${PREFIX}/projects`, 'POST'],
     [`${PREFIX}/repo`, 'GET'],
+    [`${PREFIX}/git`, 'GET'],
+    [`${PREFIX}/git/install`, 'POST'],
     [`${PREFIX}/state`, 'GET'],
     [`${PREFIX}/events`, 'GET'],
     [`${PREFIX}/transcript`, 'GET'],

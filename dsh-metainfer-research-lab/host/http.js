@@ -95,9 +95,17 @@ export function registerHttpRoutes(ctx, service, extras = {}) {
     return ok(result);
   });
 
-  route(`${PREFIX}/repo`, ['GET'], async (request) => {
-    const repoPath = query(request).get('path');
-    return ok(await service.validateRepo(repoPath));
+  route(`${PREFIX}/repo`, ['GET', 'POST'], async (request) => {
+    if (request.method === 'GET') return ok(await service.validateRepo(query(request).get('path')));
+    const body = await readJsonBody(request);
+    return ok(await service.prepareRepo(body.path));
+  });
+
+  route(`${PREFIX}/git`, ['GET'], async () => ok(await service.gitStatus()));
+
+  route(`${PREFIX}/git/install`, ['POST'], async (request) => {
+    const body = await readJsonBody(request);
+    return ok(await service.installGit({ confirmed: body.confirmed === true }));
   });
 
   route(`${PREFIX}/state`, ['GET'], async (request) => {
@@ -203,7 +211,9 @@ export function registerHttpRoutes(ctx, service, extras = {}) {
       return ok(await service.clearProjectChat(body.projectId));
     }
     if (type === 'project.copilot') {
-      return ok(await service.openCopilot(body.projectId));
+      return ok(await service.openCopilot(body.projectId, Object.fromEntries(
+        ['sessionId', 'create', 'requestId', 'title'].filter((key) => body[key] !== undefined).map((key) => [key, body[key]]),
+      )));
     }
     if (type === 'project.compile_placement') {
       return ok(await service.compilePlacementPolicyForProject(body.projectId, body.text));

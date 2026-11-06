@@ -31,6 +31,8 @@ window.__ModuleLoader__.load({
       health: 'api/metainfer-research-lab/health',
       projects: 'api/metainfer-research-lab/projects',
       repo: 'api/metainfer-research-lab/repo',
+      git: 'api/metainfer-research-lab/git',
+      gitInstall: 'api/metainfer-research-lab/git/install',
       state: 'api/metainfer-research-lab/state',
       events: 'api/metainfer-research-lab/events',
       commands: 'api/metainfer-research-lab/commands',
@@ -378,15 +380,15 @@ window.__ModuleLoader__.load({
       'guide.arch.step7.desc': 'Worker 在 child worktree 中从父 commit 出发执行实验，提交新 commit 并回传报告。GitEngine 记录 branch/commit 历史；DAG 节点 running → completed，DAG 长出一条新的实验分支。',
       'guide.arch.step8.title': '⑧ Auto Loop：DAG 生长与人的取舍',
       'guide.arch.step8.desc': 'auto 模式重复「完成 → 评审 → 提案 → 调度 → 执行」，DAG 持续变深/变宽；confirm 模式在 approve/reject 暂停。merge 节点汇合成功分支，你最终决定 merge/push 回 Git Repo。',
-      'wizard.intro': '绑定一个本地 Git 仓库或远程仓库 URL（远程仓库会克隆到受管目录），为根节点写好实验指令。',
-      'wizard.section.repo': '① 绑定 Git 仓库',
+      'wizard.intro': '填写本地绝对目录或 Git 仓库 URL，点击准备仓库。新目录会自动初始化，空库会补一个本地空提交；不会提交你的文件或自动推送。',
+      'wizard.section.repo': '① 准备 Git 仓库',
       'wizard.section.research': '② 研究设定',
-      'wizard.repoPath': '仓库路径 / URL',
-      'wizard.repoPath.placeholder': '/absolute/path/to/git/repo 或 https://github.com/owner/repo',
-      'wizard.repoPath.required': '请先填写仓库路径或 URL',
-      'wizard.validate': '验证仓库',
-      'wizard.validating': '正在验证…',
-      'wizard.repo.valid': '仓库校验通过',
+      'wizard.repoPath': '目录路径 / 仓库 URL',
+      'wizard.repoPath.placeholder': 'D:\\work\\project 或 https://github.com/owner/repo',
+      'wizard.repoPath.required': '请先填写目录绝对路径或仓库 URL',
+      'wizard.validate': '准备仓库',
+      'wizard.validating': '正在准备…',
+      'wizard.repo.valid': '仓库已就绪',
       'wizard.repo.root': '仓库根目录',
       'wizard.repo.remote': '远程仓库',
       'wizard.repo.gitDir': 'Git 目录',
@@ -394,14 +396,35 @@ window.__ModuleLoader__.load({
       'wizard.repo.commit': '基准提交',
       'wizard.repo.branches': '共 {count} 个分支',
       'wizard.repo.dirty': '工作区有未提交改动',
+      'wizard.repo.dirtyHint': '未提交文件保留在原目录，不会进入实验工作树；如需使用，请先提交这些文件，再重新准备仓库。',
       'wizard.repo.clean': '工作区干净',
-      'wizard.repo.error': '仓库校验失败',
-      'wizard.repo.error.invalid_repo': '路径不是有效的 Git 仓库',
-      'wizard.repo.error.not_git': '目录不是 Git 仓库',
-      'wizard.repo.error.bare': '不支持裸仓库',
-      'wizard.repo.error.bad_path': '路径无效或不可读；请填写本机绝对路径或 Git 仓库 URL',
-      'wizard.repo.error.no_commits': '仓库还没有任何提交，无法创建项目',
-      'wizard.repo.error.clone_failed': '克隆远程仓库失败，请检查 URL、网络或访问凭据',
+      'wizard.repo.error': '仓库准备失败',
+      'wizard.repo.error.invalid_repo': '无法读取该仓库。请确认路径、访问权限或仓库 URL 后重试。',
+      'wizard.repo.error.not_git': '目录尚未初始化。请点击“准备仓库”自动配置，或先在该目录执行 git init。',
+      'wizard.repo.error.bare': '该目录是裸仓库。请选择普通工作目录，或填写仓库 URL 以克隆后使用。',
+      'wizard.repo.error.bad_path': '路径或 URL 无效。请填写可读写的绝对目录或有效 Git URL，并确认目录权限。',
+      'wizard.repo.error.path_too_long': 'Windows 仓库路径过长。请改用更短目录；克隆路径过长时缩短 DSH_HOME 后重启 DSH。',
+      'wizard.repo.error.no_commits': '仓库尚无提交。请点击“准备仓库”自动补本地空提交，或先创建一次提交。',
+      'wizard.repo.error.bad_branch': '找不到所选分支。请重新准备仓库并选择已有分支，或检查 URL 中的分支名。',
+      'wizard.repo.error.git_missing': '未找到 Git。请允许自动安装，或安装 Git 后重试；无需手工设置全局用户名和邮箱。',
+      'wizard.repo.error.git_timeout': 'Git 操作超时。请检查网络或是否有 Git 操作占用仓库，然后重试。',
+      'wizard.repo.error.git_failed': 'Git 操作未完成。请确认 Git 可运行、目录可读写且仓库状态正常，然后重试。',
+      'wizard.repo.error.git_permission': '没有目录访问权限。请选择可读写目录，或向目录所有者申请权限后重试。',
+      'wizard.repo.error.git_unsafe': 'Git 不信任该目录的所有权。请使用自己拥有的目录，或核实后手动配置 safe.directory。',
+      'wizard.repo.error.clone_failed': '无法克隆仓库。请检查 URL、网络和仓库访问权限；私有库需先配置 Git 凭据。',
+      'wizard.repo.error.repo_setup_required': '仓库需要准备。请点击“准备仓库”以自动克隆、初始化或补本地空提交。',
+      'wizard.repo.error.initial_commit_failed': '无法创建初始提交。请确认目录可写且 Git 正常，再重新准备；原文件不会自动提交。',
+      'wizard.repo.error.git_install_confirmation_required': '安装 Git 需要你的确认。请阅读安装说明后点击“同意并安装 Git”。',
+      'wizard.repo.error.git_install_failed': 'Git 安装未完成。请确认安装权限，或按下方命令手动安装后重试。',
+      'wizard.repo.error.git_install_timeout': 'Git 安装超时。请检查是否有系统授权窗口，完成安装后重新准备仓库。',
+      'wizard.repo.error.git_install_unavailable': '当前环境无法自动安装 Git。请使用系统包管理器或 git-scm.com 安装后重试。',
+      'wizard.repo.error.unknown': '暂时无法准备仓库。请检查目录权限、Git 安装、网络和仓库地址，然后重试。',
+      'wizard.git.title': '需要安装 Git',
+      'wizard.git.consent': '仅在你同意后执行下方系统包管理器命令。Windows 安装会接受 Git 包和 winget 源协议，并可能出现系统权限提示；不会修改全局 Git 身份配置。',
+      'wizard.git.install': '同意并安装 Git',
+      'wizard.git.installing': '正在安装 Git，完成后自动继续…',
+      'wizard.git.cancel': '暂不安装',
+      'wizard.git.manual': '也可手动安装 Git，然后重新点击“准备仓库”。',
       'wizard.name': '项目名称',
       'wizard.name.placeholder': '默认使用仓库目录名',
       'wizard.brief': '研究目标 / 假设',
@@ -426,10 +449,11 @@ window.__ModuleLoader__.load({
       'wizard.create': '创建项目',
       'wizard.creating': '正在创建…',
       'wizard.error': '创建项目失败',
-      'wizard.required.repo': '请先验证仓库并选择基准分支',
+      'wizard.required.repo': '请先准备仓库并选择基准分支',
       'wizard.required.name': '请填写项目名称',
       'wizard.required.brief': '请填写研究目标 / 假设',
-      'wizard.required.prompt': '请填写根节点提示词',
+      'wizard.required.prompt': '根节点提示词至少需要 10 个字符',
+      'wizard.error.validation': '请检查必填项、提示词长度和资源/时限设置，再重试。',
       'wizard.error.noProject': 'Host 未返回项目 id',
 
       'ws.back': '← 项目列表',
@@ -1363,6 +1387,14 @@ window.__ModuleLoader__.load({
       'ws.copilot.failed': '错误',
       'ws.copilot.nativeTitle': '项目 Copilot（原生会话）',
       'ws.copilot.session': 'Session',
+      'ws.copilot.conversations': '项目对话',
+      'ws.copilot.newSession': '新建对话',
+      'ws.copilot.noSessions': '暂无项目对话',
+      'ws.copilot.privateSession': '私有子会话',
+      'ws.copilot.privateSessionHint': '新建的项目私有子会话，不作为 DSH 根会话显示。',
+      'ws.copilot.legacySession': '旧会话 · DSH 可见',
+      'ws.copilot.legacySessionHint': '保留原始 ID；仍可继续发送，并保持在 DSH 会话列表中可见。',
+      'ws.copilot.invalidAddress': '原生私有会话地址不完整，请重试。',
       'ws.copilot.loading': '正在准备原生 Copilot 会话…',
       'ws.copilot.loadError': '原生 Copilot 会话不可用',
       'ws.copilot.embedUnavailable': '当前运行时不支持嵌入原生会话，请在 DSH 原生窗口中打开。',
@@ -1666,15 +1698,15 @@ window.__ModuleLoader__.load({
       'guide.arch.step7.desc': 'The worker runs the child experiment from its parent commit in the child worktree, creates a new commit, and returns a report. GitEngine records branch/commit history; the DAG node moves running → completed and the DAG grows a new experiment branch.',
       'guide.arch.step8.title': '⑧ Auto loop: DAG growth and human choices',
       'guide.arch.step8.desc': 'Auto mode repeats complete → review → propose → schedule → execute, growing the DAG deeper and wider; confirm mode pauses at approve/reject. A merge node joins successful branches, and you decide the final merge/push back to the Git Repo.',
-      'wizard.intro': 'Bind a local Git repository or a remote repository URL (remote repositories are cloned into the managed directory), then write the root node instruction.',
-      'wizard.section.repo': '① Bind a Git repository',
+      'wizard.intro': 'Enter an absolute local directory or Git URL, then prepare it. New directories are initialized and empty repositories receive a local empty commit. Your files are not committed or pushed automatically.',
+      'wizard.section.repo': '① Prepare a Git repository',
       'wizard.section.research': '② Research setup',
-      'wizard.repoPath': 'Repository path or URL',
-      'wizard.repoPath.placeholder': '/absolute/path/to/git/repo or https://github.com/owner/repo',
-      'wizard.repoPath.required': 'Enter a repository path or URL first',
-      'wizard.validate': 'Validate repository',
-      'wizard.validating': 'Validating…',
-      'wizard.repo.valid': 'Repository validated',
+      'wizard.repoPath': 'Directory path / repository URL',
+      'wizard.repoPath.placeholder': '/absolute/project/path or https://github.com/owner/repo',
+      'wizard.repoPath.required': 'Enter an absolute directory path or repository URL first',
+      'wizard.validate': 'Prepare repository',
+      'wizard.validating': 'Preparing…',
+      'wizard.repo.valid': 'Repository ready',
       'wizard.repo.root': 'Repository root',
       'wizard.repo.remote': 'Remote repository',
       'wizard.repo.gitDir': 'Git directory',
@@ -1682,14 +1714,35 @@ window.__ModuleLoader__.load({
       'wizard.repo.commit': 'Base commit',
       'wizard.repo.branches': '{count} branches',
       'wizard.repo.dirty': 'Working tree has uncommitted changes',
+      'wizard.repo.dirtyHint': 'Uncommitted files remain in the original directory, outside experiment worktrees. Commit the files you need, then prepare the repository again.',
       'wizard.repo.clean': 'Working tree clean',
-      'wizard.repo.error': 'Repository validation failed',
-      'wizard.repo.error.invalid_repo': 'The path is not a valid Git repository',
-      'wizard.repo.error.not_git': 'The directory is not a Git repository',
-      'wizard.repo.error.bare': 'Bare repositories are not supported',
-      'wizard.repo.error.bad_path': 'The path is invalid or unreadable; use an absolute local path or a Git repository URL',
-      'wizard.repo.error.no_commits': 'The repository has no commits yet',
-      'wizard.repo.error.clone_failed': 'Failed to clone the remote repository; check the URL, network or credentials',
+      'wizard.repo.error': 'Repository preparation failed',
+      'wizard.repo.error.invalid_repo': 'Cannot read this repository. Check the path, permissions or repository URL, then retry.',
+      'wizard.repo.error.not_git': 'This directory is not initialized. Click Prepare repository to configure it, or run git init there first.',
+      'wizard.repo.error.bare': 'This is a bare repository. Choose a normal working directory, or enter its URL to clone it first.',
+      'wizard.repo.error.bad_path': 'Invalid path or URL. Enter a writable absolute directory or valid Git URL, and check directory permissions.',
+      'wizard.repo.error.path_too_long': 'The Windows repository path is too long. Use a shorter folder; for a clone cache, shorten DSH_HOME and restart DSH.',
+      'wizard.repo.error.no_commits': 'This repository has no commits. Click Prepare repository to add a local empty commit, or create a commit first.',
+      'wizard.repo.error.bad_branch': 'The selected branch was not found. Prepare again and choose an existing branch, or check the branch in the URL.',
+      'wizard.repo.error.git_missing': 'Git was not found. Allow automatic installation, or install Git and retry. Global name/email setup is not required.',
+      'wizard.repo.error.git_timeout': 'Git timed out. Check the network and any other Git operation using this repository, then retry.',
+      'wizard.repo.error.git_failed': 'Git could not finish. Check that Git runs, the directory is writable and the repository is healthy, then retry.',
+      'wizard.repo.error.git_permission': 'Directory access was denied. Choose a writable directory, or ask its owner for access, then retry.',
+      'wizard.repo.error.git_unsafe': 'Git does not trust this directory ownership. Use your own directory, or verify it before manually configuring safe.directory.',
+      'wizard.repo.error.clone_failed': 'Cannot clone this repository. Check the URL, network and access permissions. Configure Git credentials first for private repositories.',
+      'wizard.repo.error.repo_setup_required': 'This repository needs preparation. Click Prepare repository to clone, initialize or add a local empty commit.',
+      'wizard.repo.error.initial_commit_failed': 'Cannot create the initial commit. Check directory write access and Git, then prepare again. Your files are not committed automatically.',
+      'wizard.repo.error.git_install_confirmation_required': 'Git installation needs your consent. Read the installation details, then click Agree and install Git.',
+      'wizard.repo.error.git_install_failed': 'Git installation did not finish. Check installation permissions, or run the command below manually and retry.',
+      'wizard.repo.error.git_install_timeout': 'Git installation timed out. Check for a system permission dialog, finish installation, then prepare again.',
+      'wizard.repo.error.git_install_unavailable': 'Automatic Git installation is unavailable. Install Git with your system package manager or from git-scm.com, then retry.',
+      'wizard.repo.error.unknown': 'Cannot prepare this repository right now. Check directory permissions, Git, the network and repository address, then retry.',
+      'wizard.git.title': 'Git installation required',
+      'wizard.git.consent': 'The system package-manager command below runs only with your consent. On Windows it accepts the Git package and winget source agreements and may show a system permission prompt. Global Git identity settings are not changed.',
+      'wizard.git.install': 'Agree and install Git',
+      'wizard.git.installing': 'Installing Git; preparation will resume automatically…',
+      'wizard.git.cancel': 'Not now',
+      'wizard.git.manual': 'You can also install Git manually, then click Prepare repository again.',
       'wizard.name': 'Project name',
       'wizard.name.placeholder': 'Defaults to the repository directory name',
       'wizard.brief': 'Research goal / hypothesis',
@@ -1714,10 +1767,11 @@ window.__ModuleLoader__.load({
       'wizard.create': 'Create project',
       'wizard.creating': 'Creating…',
       'wizard.error': 'Could not create the project',
-      'wizard.required.repo': 'Validate a repository and choose a base branch first',
+      'wizard.required.repo': 'Prepare a repository and choose a base branch first',
       'wizard.required.name': 'Enter a project name',
       'wizard.required.brief': 'Enter the research goal / hypothesis',
-      'wizard.required.prompt': 'Enter the root node prompt',
+      'wizard.required.prompt': 'The root node prompt needs at least 10 characters',
+      'wizard.error.validation': 'Check required fields, prompt length, resource pools and time limits, then retry.',
       'wizard.error.noProject': 'The Host did not return a project id',
 
       'ws.back': '← Projects',
@@ -2651,6 +2705,14 @@ window.__ModuleLoader__.load({
       'ws.copilot.failed': 'Error',
       'ws.copilot.nativeTitle': 'Project Copilot (native session)',
       'ws.copilot.session': 'Session',
+      'ws.copilot.conversations': 'Project conversations',
+      'ws.copilot.newSession': 'New conversation',
+      'ws.copilot.noSessions': 'No project conversations yet',
+      'ws.copilot.privateSession': 'Private child',
+      'ws.copilot.privateSessionHint': 'A new project-private child conversation, not a DSH root session.',
+      'ws.copilot.legacySession': 'Legacy · DSH visible',
+      'ws.copilot.legacySessionHint': 'Keeps its original ID, can still send messages, and remains visible in the DSH session list.',
+      'ws.copilot.invalidAddress': 'The native private-session address is incomplete; retry to recover.',
       'ws.copilot.loading': 'Preparing the native Copilot session…',
       'ws.copilot.loadError': 'The native Copilot session is unavailable',
       'ws.copilot.embedUnavailable': 'This runtime cannot embed a native session; open it in a DSH native window instead.',
@@ -2833,10 +2895,24 @@ window.__ModuleLoader__.load({
       '.rl-copilot-native-backdrop { position: fixed; inset: 0; z-index: 59; background: var(--dsw-alias-bg-mask-2, transparent); pointer-events: auto; }',
       '.rl-copilot-native { position: relative; z-index: 60; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; width: min(96vw, calc(100vw - 32px)); max-width: calc(100vw - 32px); height: min(96vh, calc(100vh - 32px)); height: min(96vh, calc(100dvh - 32px)); max-height: calc(100vh - 32px); margin: auto; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 0; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-family: inherit; font-size: 13px; line-height: 20px; pointer-events: auto; overflow: hidden; }',
       '.rl-copilot-native-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px; flex: none; padding: 10px 14px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }',
+      '.rl-copilot-native-head .rl-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
       '.rl-copilot-native-title { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 500; line-height: 20px; }',
       '.rl-copilot-native-hint { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-      '.rl-copilot-native-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }',
-      '.rl-copilot-native-view { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }',
+      '.rl-copilot-native-workspace { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }',
+      '.rl-copilot-sidebar { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 220px; width: 220px; min-width: 0; min-height: 0; border-right: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); overflow: hidden; }',
+      '.rl-copilot-sidebar-head { display: flex; flex-direction: column; gap: 8px; flex: none; min-width: 0; padding: 10px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }',
+      '.rl-copilot-sidebar-head .rl-btn { border-radius: 0; padding-inline: 6px; width: 100%; }',
+      '.rl-copilot-sidebar-title { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }',
+      '.rl-copilot-sidebar-list { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; min-height: 0; padding: 4px; overflow-y: auto; overflow-x: hidden; }',
+      '.rl-copilot-sidebar-row { box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex: none; width: 100%; min-width: 0; padding: 8px; border: 0; border-radius: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; line-height: 18px; text-align: left; cursor: pointer; }',
+      '.rl-copilot-sidebar-row:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); }',
+      '.rl-copilot-sidebar-row[aria-current="true"] { background: var(--dsw-alias-bg-layer-2); box-shadow: inset 2px 0 0 var(--dsw-alias-brand-primary); }',
+      '.rl-copilot-sidebar-row:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }',
+      '.rl-copilot-sidebar-row:disabled { opacity: 0.6; cursor: wait; }',
+      '.rl-copilot-sidebar-row-title { display: block; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+      '.rl-copilot-sidebar-kind { color: var(--dsw-alias-label-tertiary); font-size: 10.5px; line-height: 16px; overflow-wrap: anywhere; }',
+      '.rl-copilot-native-body { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }',
+      '.rl-copilot-native-view { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }',
       '.rl-copilot-native-view > [data-conversation-content] { flex: 1 1 auto; min-height: 0; height: 100%; }',
       '.rl-copilot-native-view [data-conversation-scroll] { flex: 1 1 auto; min-height: 0; overflow-y: auto !important; justify-content: flex-start !important; }',
       '.rl-copilot-native-view [data-composer-seat] { position: sticky !important; inset-block-end: 0 !important; inset-inline: 0 !important; z-index: 8; flex: 0 0 auto !important; background: var(--dsw-alias-bg-layer-1); }',
@@ -3150,7 +3226,7 @@ window.__ModuleLoader__.load({
       '.rl-push-stdout { margin: 0; max-height: 160px; overflow: auto; padding: 6px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-family: ' + MONO + '; font-size: 11px; line-height: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }',
       '@media (max-width: 1180px) { .rl-workspace-grid { grid-template-columns: 210px minmax(0, 1fr) 300px; } }',
       '@media (max-width: 980px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr) minmax(250px, 30vw); } .rl-rail { display: none; } }',
-      '@media (max-width: 760px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(170px, 42vh); overflow: auto; } .rl-inspector { grid-column: 1; grid-row: 2; max-height: 42vh; border-left: 0; border-top: 0.5px solid var(--dsw-alias-border-l2); } .rl-canvas { min-height: 260px; } .rl-copilot-native-layer { padding: 8px; } .rl-copilot-native { width: calc(100vw - 16px); max-width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100vh - 16px); border-radius: 0; } .rl-copilot-native-head { padding: 8px 10px; } .rl-copilot-native-hint { flex: 1 1 100%; margin-left: 0; white-space: normal; } }',
+      '@media (max-width: 760px) { .rl-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(170px, 42vh); overflow: auto; } .rl-inspector { grid-column: 1; grid-row: 2; max-height: 42vh; border-left: 0; border-top: 0.5px solid var(--dsw-alias-border-l2); } .rl-canvas { min-height: 260px; } .rl-copilot-native-layer { padding: 8px; } .rl-copilot-native { width: calc(100vw - 16px); max-width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100vh - 16px); border-radius: 0; } .rl-copilot-native-head { padding: 8px 10px; } .rl-copilot-native-hint { flex: 1 1 100%; margin-left: 0; white-space: normal; } .rl-copilot-sidebar { flex-basis: 130px; width: 130px; } .rl-copilot-sidebar-head { padding: 8px 6px; } .rl-copilot-sidebar-row { padding: 7px 6px; } }',
       '@media (max-width: 640px) { .rl-settings-model-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-settings-model-role { grid-column: 1 / -1; padding: 0; } .rl-reviewer-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-model-option-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-config-device-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rl-config-grid, .rl-config-grid-3 { grid-template-columns: minmax(0, 1fr); } .rl-reviewer-row .rl-reviewer-actions, .rl-model-option-row > :last-child { grid-column: 1 / -1; } .rl-drawer { width: 100%; min-width: 0; } .rl-modal, .rl-modal-wide, .rl-modal-narrow { width: 100%; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); } .rl-modal-body { padding: 10px 12px; } .rl-modal-head, .rl-modal-foot { padding: 10px 12px; } .rl-log-row, .rl-log-row-btn { grid-template-columns: 46px 62px minmax(0, 1fr); gap: 6px; font-size: 11px; } .rl-topbar { padding: 8px 10px; } .rl-workspace-grid { grid-template-rows: minmax(0, 1fr) minmax(190px, 46vh); } .rl-inspector { max-height: 46vh; } }',
       '@media (max-width: 420px) { .rl-settings-model-row, .rl-reviewer-row, .rl-model-option-row, .rl-config-device-row { grid-template-columns: minmax(0, 1fr); } .rl-reviewer-row .rl-reviewer-actions, .rl-model-option-row > :last-child { grid-column: auto; } .rl-node-actions { opacity: 1; } .rl-canvas-hint { display: none; } }',
       '.rl-guide-layer { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: clamp(8px, 2vw, 24px); pointer-events: none; }',
@@ -3399,6 +3475,15 @@ window.__ModuleLoader__.load({
       },
       inspectRepo(repoPath, signal, t) {
         return requestJson(ROUTES.repo + '?path=' + encodeURIComponent(repoPath), { signal }, t);
+      },
+      prepareRepo(repoPath, signal, t) {
+        return requestJson(ROUTES.repo, { method: 'POST', body: { path: repoPath }, signal }, t);
+      },
+      gitStatus(signal, t) {
+        return requestJson(ROUTES.git, { signal }, t);
+      },
+      installGit(signal, t) {
+        return requestJson(ROUTES.gitInstall, { method: 'POST', body: { confirmed: true }, signal }, t);
       },
       listProjects(signal, t) {
         return requestJson(ROUTES.projects, { signal }, t);
@@ -4055,8 +4140,12 @@ window.__ModuleLoader__.load({
         if (id === '') return { ok: false, error: 'no-session' };
         const scope = context !== null && context !== undefined && typeof context === 'object' ? context : {};
         try {
+          const parentSessionId = firstString(scope.parentSessionId);
           let target = id;
-          if (ctx !== null && ctx !== undefined && ctx.sessions !== null && ctx.sessions !== undefined && typeof ctx.sessions.subagentAddress === 'function') {
+          if (parentSessionId !== '') {
+            if (scope.mode !== 'continuable') return { ok: false, error: 'invalid-private-session-mode' };
+            target = { parentSessionId, childSessionId: id, mode: 'continuable' };
+          } else if (ctx !== null && ctx !== undefined && ctx.sessions !== null && ctx.sessions !== undefined && typeof ctx.sessions.subagentAddress === 'function') {
             const address = ctx.sessions.subagentAddress(id);
             if (address !== undefined && address !== null && String(address) !== '') target = address;
           }
@@ -4074,7 +4163,7 @@ window.__ModuleLoader__.load({
           if (ctx !== null && ctx !== undefined && ctx.uiWorkspace !== null && ctx.uiWorkspace !== undefined && typeof ctx.uiWorkspace.openSession === 'function') {
             markNativeReturnTarget(firstString(scope.projectId), firstString(scope.nodeId));
             presetConversationView(id, view);
-            ctx.uiWorkspace.openSession(target);
+            await ctx.uiWorkspace.openSession(target);
             return { ok: true, sessionId: id, target };
           }
           return { ok: false, error: 'ui-workspace-unavailable' };
@@ -6088,11 +6177,16 @@ window.__ModuleLoader__.load({
 
     /** Map a Host repo error code to a localized wizard message when known. */
     function localizedRepoError(error, t) {
-      const known = ['invalid_repo', 'not_git', 'bare', 'bad_path', 'no_commits', 'clone_failed'];
-      if (error instanceof LabRequestError && known.indexOf(error.code) >= 0) {
-        return t('wizard.repo.error.' + error.code);
-      }
-      return describeError(error, t);
+      const known = [
+        'invalid_repo', 'not_git', 'bare', 'bad_path', 'path_too_long', 'no_commits', 'bad_branch',
+        'git_missing', 'git_timeout', 'git_failed', 'git_permission', 'git_unsafe',
+        'clone_failed', 'repo_setup_required', 'initial_commit_failed',
+        'git_install_confirmation_required', 'git_install_failed', 'git_install_timeout', 'git_install_unavailable',
+      ];
+      if (error && known.indexOf(error.code) >= 0) return t('wizard.repo.error.' + error.code);
+      if (error && error.code === 'unauthorized') return t('error.unauthorized');
+      if (error && error.name === 'TypeError') return t('error.network');
+      return t('wizard.repo.error.unknown');
     }
     // #endregion
 
@@ -7141,17 +7235,18 @@ window.__ModuleLoader__.load({
 
     // #region create-project wizard
     /**
-     * Two-section wizard: validate the Git repository (GET /repo) and collect the
-     * research setup, then POST one project and open its workspace.
+     * Two-section wizard: explicitly prepare the Git repository (POST /repo) and
+     * collect the research setup, then POST one project and open its workspace.
      */
     function CreateProjectWizard({ t, onCreated, embedded = false }) {
       const [repoPath, setRepoPath] = React.useState('');
       const [repoPhase, setRepoPhase] = React.useState('idle');
       const [repoInfo, setRepoInfo] = React.useState(null);
       const [repoError, setRepoError] = React.useState('');
+      const [gitSetup, setGitSetup] = React.useState(null);
       const [baseBranch, setBaseBranch] = React.useState('');
       const [name, setName] = React.useState('');
-      const [nameTouched, setNameTouched] = React.useState(false);
+      const nameTouchedRef = React.useRef(false);
       const [brief, setBrief] = React.useState('');
       const [initialPrompt, setInitialPrompt] = React.useState('');
       const [pools, setPools] = React.useState([{ id: 'pool-1', key: 'gpu', value: '1' }]);
@@ -7170,37 +7265,61 @@ window.__ModuleLoader__.load({
         if (createAbortRef.current !== null) createAbortRef.current.abort();
       }, []);
 
-      const validateRepo = async () => {
+      const validateRepo = async ({ install = false } = {}) => {
+        if (repoAbortRef.current !== null && !repoAbortRef.current.signal.aborted) return;
         const path = repoPath.trim();
         if (!path) {
           setRepoPhase('error');
-          setRepoError(t('wizard.repoPath.required'));
+          setRepoError({ key: 'wizard.repoPath.required' });
           return;
         }
-        if (repoAbortRef.current !== null) repoAbortRef.current.abort();
         const controller = new AbortController();
         repoAbortRef.current = controller;
-        setRepoPhase('validating');
+        const current = () => repoAbortRef.current === controller && !controller.signal.aborted;
+        setRepoPhase(install ? 'installing' : 'validating');
         setRepoError('');
         setRepoInfo(null);
+        setCreateError('');
+        if (!install) setGitSetup(null);
         try {
-          const payload = await api.inspectRepo(path, controller.signal, t);
+          if (install) {
+            const status = await api.installGit(controller.signal, t);
+            if (!current()) return;
+            if (!status || status.available !== true) throw new LabRequestError('git_install_failed');
+            setGitSetup(null);
+            setRepoPhase('validating');
+          }
+          const payload = await api.prepareRepo(path, controller.signal, t);
+          if (!current()) return;
           const info = normalizeRepoInfo(payload);
-          if (!info.repoRoot && info.branches.length === 0) {
-            throw new LabRequestError('invalid_repo', t('wizard.repo.error.invalid_repo'));
+          if (!info.repoRoot || !info.defaultBranch || !info.baseCommit) {
+            throw new LabRequestError('invalid_repo');
           }
           setRepoInfo(info);
           setRepoPhase('valid');
+          setRepoPath(info.repoRoot);
           setBaseBranch((previous) => (previous && info.branches.indexOf(previous) >= 0 ? previous : info.defaultBranch));
           setName((previous) => {
-            if (nameTouched && previous.trim()) return previous;
+            if (nameTouchedRef.current && previous.trim()) return previous;
             const suggested = info.remoteUrl ? repoNameFromUrl(info.remoteUrl) : basenameOfPath(info.repoRoot || path);
             return suggested || previous;
           });
         } catch (error) {
-          if (isAbortError(error)) return;
+          if (!current() || isAbortError(error)) return;
           setRepoPhase('error');
-          setRepoError(localizedRepoError(error, t));
+          setRepoError(error);
+          if (error && error.code === 'git_missing' && !install) {
+            try {
+              const status = await api.gitStatus(controller.signal, t);
+              if (!current()) return;
+              setGitSetup(asObject(status));
+            } catch (statusError) {
+              if (!current() || isAbortError(statusError)) return;
+              setRepoError(statusError);
+            }
+          }
+        } finally {
+          if (repoAbortRef.current === controller) repoAbortRef.current = null;
         }
       };
 
@@ -7220,41 +7339,42 @@ window.__ModuleLoader__.load({
         for (const pool of pools) {
           const key = String(pool.key === undefined || pool.key === null ? '' : pool.key).trim();
           const amount = parseInteger(pool.value, 0);
-          if (!key || amount <= 0) return { error: t('wizard.pools.required') };
-          if (Object.prototype.hasOwnProperty.call(resourcePools, key)) return { error: t('wizard.pools.duplicate') };
+          if (!key || amount <= 0) return { error: 'wizard.pools.required' };
+          if (Object.prototype.hasOwnProperty.call(resourcePools, key)) return { error: 'wizard.pools.duplicate' };
           resourcePools[key] = amount;
         }
-        if (Object.keys(resourcePools).length === 0) return { error: t('wizard.pools.required') };
+        if (Object.keys(resourcePools).length === 0) return { error: 'wizard.pools.required' };
         return { value: resourcePools };
       };
 
       const create = async () => {
-        if (createPhase === 'creating') return;
+        if (createPhase === 'creating' || (createAbortRef.current !== null && !createAbortRef.current.signal.aborted)) return;
         if (repoInfo === null || repoPhase !== 'valid') {
-          setCreateError(t('wizard.required.repo'));
+          setCreateError({ key: 'wizard.required.repo' });
           return;
         }
         if (!name.trim()) {
-          setCreateError(t('wizard.required.name'));
+          setCreateError({ key: 'wizard.required.name' });
           return;
         }
         if (!brief.trim()) {
-          setCreateError(t('wizard.required.brief'));
+          setCreateError({ key: 'wizard.required.brief' });
           return;
         }
-        if (!initialPrompt.trim()) {
-          setCreateError(t('wizard.required.prompt'));
+        if (initialPrompt.trim().length < 10) {
+          setCreateError({ key: 'wizard.required.prompt' });
           return;
         }
         const collected = collectPools();
         if (collected.error) {
-          setCreateError(collected.error);
+          setCreateError({ key: collected.error });
           return;
         }
         setCreatePhase('creating');
         setCreateError('');
         const controller = new AbortController();
         createAbortRef.current = controller;
+        const current = () => createAbortRef.current === controller && !controller.signal.aborted;
         try {
           const payload = await api.createProject(
             {
@@ -7274,23 +7394,28 @@ window.__ModuleLoader__.load({
             controller.signal,
             t,
           );
+          if (!current()) return;
           const record = asObject(payload);
           const project = record.project !== null && typeof record.project === 'object' ? record.project : null;
           const createdId = project !== null ? projectIdOf(project) : firstString(record.projectId, record.id);
           if (!createdId) {
-            setCreateError(t('wizard.error.noProject'));
+            setCreateError({ key: 'wizard.error.noProject' });
             setCreatePhase('idle');
             return;
           }
           onCreated(createdId);
         } catch (error) {
-          if (isAbortError(error)) return;
-          setCreateError(describeError(error, t));
+          if (!current() || isAbortError(error)) return;
+          setCreateError(error && error.code === 'bad_request' ? { key: 'wizard.error.validation' } : error);
           setCreatePhase('idle');
+        } finally {
+          if (createAbortRef.current === controller) createAbortRef.current = null;
         }
       };
 
+      const wizardError = (error) => error && error.key ? t(error.key) : localizedRepoError(error, t);
       const validating = repoPhase === 'validating';
+      const installing = repoPhase === 'installing';
       const creating = createPhase === 'creating';
       let branchOptions = [];
       if (repoInfo !== null) {
@@ -7328,18 +7453,24 @@ window.__ModuleLoader__.load({
                 value: repoPath,
                 placeholder: t('wizard.repoPath.placeholder'),
                 ariaLabel: t('wizard.repoPath'),
+                disabled: creating || installing,
                 onChange: (event) => {
+                  if (repoAbortRef.current !== null) repoAbortRef.current.abort();
+                  repoAbortRef.current = null;
                   setRepoPath(event.target.value);
-                  if (repoPhase !== 'idle') setRepoPhase('idle');
-                  if (repoInfo !== null) setRepoInfo(null);
-                  if (repoError) setRepoError('');
+                  setBaseBranch('');
+                  setRepoPhase('idle');
+                  setRepoInfo(null);
+                  setRepoError('');
+                  setGitSetup(null);
+                  setCreateError('');
                 },
               }),
               h(LabButton, {
                 label: validating ? t('wizard.validating') : t('wizard.validate'),
                 variant: 'ghost',
-                disabled: validating,
-                onClick: validateRepo,
+                disabled: validating || installing || creating,
+                onClick: () => validateRepo(),
               }),
             ),
           ),
@@ -7347,7 +7478,23 @@ window.__ModuleLoader__.load({
             ? h(
                 'p',
                 { className: 'rl-error-text', role: 'alert' },
-                t('wizard.repo.error') + ': ' + repoError,
+                t('wizard.repo.error') + ': ' + wizardError(repoError),
+              )
+            : null,
+          installing ? h(LabLoading, { label: t('wizard.git.installing') }) : null,
+          gitSetup !== null
+            ? h(
+                'div',
+                { className: 'rl-repo-info', role: 'status' },
+                h('strong', null, t('wizard.git.title')),
+                h('p', { className: 'rl-hint' }, t(gitSetup.installable === true ? 'wizard.git.consent' : 'wizard.git.manual')),
+                h('code', { className: 'rl-text-prewrap' }, firstString(gitSetup.command, gitSetup.manualCommand)),
+                gitSetup.installable === true
+                  ? h('div', { className: 'rl-form-actions' },
+                      h(LabButton, { label: t('wizard.git.install'), variant: 'primary', disabled: installing, onClick: () => validateRepo({ install: true }) }),
+                      h(LabButton, { label: t('wizard.git.cancel'), variant: 'ghost', disabled: installing, onClick: () => setGitSetup(null) }),
+                    )
+                  : null,
               )
             : null,
           repoInfo !== null
@@ -7361,6 +7508,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'rl-chip' }, t('wizard.repo.branches', { count: repoInfo.branches.length })),
                   h('span', { className: 'rl-chip' }, repoInfo.dirty ? t('wizard.repo.dirty') : t('wizard.repo.clean')),
                 ),
+                repoInfo.dirty ? h('p', { className: 'rl-hint' }, t('wizard.repo.dirtyHint')) : null,
                 h(LabInfoRow, { label: t('wizard.repo.root'), value: repoInfo.repoRoot }),
                 repoInfo.remoteUrl ? h(LabInfoRow, { label: t('wizard.repo.remote'), value: repoInfo.remoteUrl, mono: true }) : null,
                 repoInfo.gitDir ? h(LabInfoRow, { label: t('wizard.repo.gitDir'), value: repoInfo.gitDir, mono: true }) : null,
@@ -7399,7 +7547,7 @@ window.__ModuleLoader__.load({
                 ariaLabel: t('wizard.name'),
                 onChange: (event) => {
                   setName(event.target.value);
-                  setNameTouched(true);
+                  nameTouchedRef.current = true;
                 },
               }),
             ),
@@ -7509,7 +7657,7 @@ window.__ModuleLoader__.load({
         ),
 
         createError
-          ? h('p', { className: 'rl-error-text', role: 'alert' }, t('wizard.error') + ': ' + createError)
+          ? h('p', { className: 'rl-error-text', role: 'alert' }, t('wizard.error') + ': ' + wizardError(createError))
           : null,
         h(
           'div',
@@ -7517,7 +7665,7 @@ window.__ModuleLoader__.load({
           h(LabButton, {
             label: creating ? t('wizard.creating') : t('wizard.create'),
             variant: 'primary',
-            disabled: creating,
+            disabled: creating || validating || installing,
             onClick: create,
           }),
         ),
@@ -8518,6 +8666,7 @@ window.__ModuleLoader__.load({
         h(ActivityLog, { events, onSelectNode: setSelectedId, onOpenRun: openRuns, t }),
         copilotOpen
           ? h(CopilotDrawerMemo, {
+              key: projectId,
               projectId,
               onClose: closeCopilot,
               openNativeSession,
@@ -8685,7 +8834,14 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Large drawer hosting the persistent native Copilot Conversation (or a native fallback). */
+    // Only unresolved create-action tokens live here; conversation history/MRU stay Host-owned.
+    const copilotCreateRequests = new Map();
+    function copilotCreateRequestId() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return 'copilot-' + crypto.randomUUID();
+      return 'copilot-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 14) + '-' + Math.random().toString(36).slice(2, 14);
+    }
+
+    /** Large drawer hosting one native Copilot Conversation and its project-specific list. */
     function CopilotDrawer({ projectId, onClose, openNativeSession, retainCopilotSession, SessionProvider, renderFactorySlot, t }) {
       const [phase, setPhase] = React.useState('loading');
       const [sessionId, setSessionId] = React.useState('');
@@ -8697,7 +8853,10 @@ window.__ModuleLoader__.load({
       const [parentSessionId, setParentSessionId] = React.useState('');
       const [nativeError, setNativeError] = React.useState('');
       const referenceRef = React.useRef(null);
-      const requestRef = React.useRef({ sessionId: '', create: false });
+      const requestRef = React.useRef({ projectId, sessionId: '', create: false });
+      const pendingRef = React.useRef(false);
+      const generationRef = React.useRef(0);
+      const mountedRef = React.useRef(true);
       const tRef = React.useRef(t);
       tRef.current = t;
       const retainRef = React.useRef(retainCopilotSession);
@@ -8717,12 +8876,34 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         let alive = true;
+        let retained = null;
+        const controller = new AbortController();
+        const generation = ++generationRef.current;
+        const current = () => alive && generationRef.current === generation && !controller.signal.aborted;
+        const release = () => {
+          const ref = retained;
+          retained = null;
+          if (referenceRef.current === ref) referenceRef.current = null;
+          if (ref !== null && ref !== undefined && typeof ref.release === 'function') {
+            try {
+              ref.release();
+            } catch (error) {
+              // release is best-effort
+            }
+          }
+        };
+        mountedRef.current = true;
+        pendingRef.current = true;
         loadCountRef.current += 1;
-        const request = requestRef.current && typeof requestRef.current === 'object' ? requestRef.current : {};
-        requestRef.current = { sessionId: '', create: false };
+        if (requestRef.current.projectId !== projectId) {
+          requestRef.current = { projectId, sessionId: '', create: false };
+          setSessions([]);
+          setSessionId('');
+          setParentSessionId('');
+          setReused(false);
+        }
+        const request = requestRef.current;
         setPhase('loading');
-        setSessionId('');
-        setReused(false);
         setReference(null);
         setReason('');
         setNativeError('');
@@ -8730,78 +8911,98 @@ window.__ModuleLoader__.load({
           try {
             const body = { type: 'project.copilot', projectId };
             if (firstString(request.sessionId) !== '') body.sessionId = firstString(request.sessionId);
-            if (request.create === true) body.create = true;
-            const data = await api.command(body, undefined, tRef.current);
-            if (!alive) return;
+            if (request.create === true) {
+              body.create = true;
+              body.requestId = request.requestId;
+            }
+            const data = await api.command(body, controller.signal, tRef.current);
+            if (!current()) return;
             const record = asObject(data);
             const id = firstString(record.sessionId);
-            const isReused = record.reused === true;
-            const parent = firstString(record.parentSessionId);
+            if (id === '' || (firstString(record.projectId) !== '' && record.projectId !== projectId)
+              || (firstString(request.sessionId) !== '' && id !== request.sessionId)) {
+              throw new Error(tRef.current('ws.copilot.loadError'));
+            }
+            const parent = record.private === true ? firstString(record.parentSessionId) : '';
+            if (record.private === true && (parent === '' || record.mode !== 'continuable')) {
+              throw new Error(tRef.current('ws.copilot.invalidAddress'));
+            }
             const list = asArray(record.sessions)
-              .filter((entry) => entry !== null && typeof entry === 'object' && firstString(entry.id) !== '' && entry.private !== false)
+              .filter((entry) => entry !== null && typeof entry === 'object' && firstString(entry.id) !== '')
               .map((entry) => ({
                 id: firstString(entry.id),
                 title: firstString(entry.title) || firstString(entry.id),
+                private: entry.private === true,
               }));
+            requestRef.current = { projectId, sessionId: id, create: false };
+            if (request.create === true && copilotCreateRequests.get(projectId) === request.requestId) copilotCreateRequests.delete(projectId);
             setSessions(list);
             setParentSessionId(parent);
-            if (id === '') {
-              setPhase('fallback');
-              setReason(tRef.current('ws.copilot.loadError'));
-              return;
-            }
             setSessionId(id);
-            setReused(isReused);
+            setReused(record.reused === true);
             const retain = retainRef.current;
-            const ref = typeof retain === 'function' ? retain(id, parent, attempt) : null;
+            const ref = typeof retain === 'function' ? retain(id, parent) : null;
             if (ref === null || ref === undefined) {
               setPhase('fallback');
               setReason(tRef.current('ws.copilot.embedUnavailable'));
               return;
             }
+            retained = ref;
             referenceRef.current = ref;
             setReference(ref);
             try {
               await Promise.resolve(ref.ready);
             } catch (error) {
-              if (!alive) return;
+              if (!current()) return;
+              release();
+              setReference(null);
               setPhase('fallback');
               setReason(tRef.current('ws.copilot.embedFailed') + ': ' + describeError(error, tRef.current));
               return;
             }
-            if (!alive) return;
+            if (!current()) return;
             setReason(firstString(record.warning));
             setPhase('ready');
           } catch (error) {
-            if (!alive || isAbortError(error)) return;
+            if (!current()) return;
             setPhase('fallback');
             setReason(describeError(error, tRef.current));
+          } finally {
+            if (current()) pendingRef.current = false;
           }
         })();
         return () => {
           alive = false;
-          const current = referenceRef.current;
-          referenceRef.current = null;
-          if (current !== null && current !== undefined && typeof current.release === 'function') {
-            try {
-              current.release();
-            } catch (error) {
-              // release is best-effort
-            }
-          }
+          mountedRef.current = false;
+          controller.abort();
+          release();
+          if (generationRef.current === generation) pendingRef.current = false;
         };
       }, [projectId, attempt]);
 
+      const queueCopilotRequest = (request) => {
+        if (pendingRef.current || !mountedRef.current) return;
+        pendingRef.current = true;
+        generationRef.current += 1;
+        requestRef.current = request;
+        setPhase('loading');
+        setAttempt((value) => value + 1);
+      };
       const switchCopilotSession = (nextId) => {
         const id = firstString(nextId);
-        if (id === '' || id === sessionId) return;
-        requestRef.current = { sessionId: id, create: false };
-        setAttempt((value) => value + 1);
+        if (id === '' || (id === sessionId && phase === 'ready')) return;
+        queueCopilotRequest({ projectId, sessionId: id, create: false });
       };
       const createCopilotSession = () => {
-        requestRef.current = { sessionId: '', create: true };
-        setAttempt((value) => value + 1);
+        if (pendingRef.current || !mountedRef.current) return;
+        let requestId = copilotCreateRequests.get(projectId);
+        if (requestId === undefined) {
+          requestId = copilotCreateRequestId();
+          copilotCreateRequests.set(projectId, requestId);
+        }
+        queueCopilotRequest({ projectId, sessionId: '', create: true, requestId });
       };
+      const retryCopilotSession = () => queueCopilotRequest(requestRef.current);
       const currentSessionTitle = (() => {
         for (const entry of sessions) if (entry.id === sessionId) return entry.title;
         return '';
@@ -8809,15 +9010,20 @@ window.__ModuleLoader__.load({
 
       const openNative = async (view) => {
         const id = firstString(sessionId);
-        if (id === '') return;
+        if (id === '' || pendingRef.current || !mountedRef.current) return;
+        const generation = generationRef.current;
         setNativeError('');
         try {
           if (typeof openNativeSession !== 'function') throw new Error(t('ws.native.openFailed'));
-          const result = await openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', { projectId, nodeId: '' });
+          const result = await openNativeSession(id, view === 'trajectory' ? 'trajectory' : 'chat', {
+            projectId, nodeId: '', parentSessionId: parentSessionId || null, mode: parentSessionId === '' ? null : 'continuable',
+          });
+          if (!mountedRef.current || generationRef.current !== generation) return;
           if (result === null || result === undefined || result.ok !== true) {
             throw new Error(firstString(asObject(result).error) || t('ws.native.openFailed'));
           }
         } catch (error) {
+          if (!mountedRef.current || generationRef.current !== generation) return;
           const message = describeError(error, t);
           setNativeError(message === t('ws.native.openFailed') ? message : t('ws.native.openFailed') + ': ' + message);
         }
@@ -8835,15 +9041,15 @@ window.__ModuleLoader__.load({
             h(LabButton, {
               label: t('ws.copilot.openNative'),
               variant: 'primary',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('chat'),
             }),
             h(LabButton, {
               label: t('ws.copilot.openTrajectory'),
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('trajectory'),
             }),
-            h(LabButton, { label: t('ws.copilot.retry'), variant: 'ghost', onClick: () => setAttempt((value) => value + 1) }),
+            h(LabButton, { label: t('ws.copilot.retry'), variant: 'ghost', disabled: phase === 'loading', onClick: retryCopilotSession }),
           ),
         );
 
@@ -8927,20 +9133,6 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'rl-copilot-native-head' },
             h('span', { className: 'rl-copilot-native-title' }, t('ws.copilot.nativeTitle')),
-            h(LabSelect, {
-              value: sessionId,
-              ariaLabel: t('ws.copilot.sessionPicker'),
-              options: sessions.length > 0
-                ? sessions.map((entry) => ({ value: entry.id, label: entry.title }))
-                : [{ value: '', label: t('ws.copilot.noSessions') }],
-              onChange: (event) => switchCopilotSession(event.target.value),
-            }),
-            h(LabButton, {
-              label: t('ws.copilot.newSession'),
-              variant: 'ghost',
-              disabled: phase === 'loading',
-              onClick: () => createCopilotSession(),
-            }),
             reused ? h('span', { className: 'rl-chip' }, t('ws.copilot.reused')) : (sessionId !== '' ? h('span', { className: 'rl-chip' }, t('ws.copilot.created')) : null),
             currentSessionTitle !== '' ? h('span', { className: 'rl-chip' }, currentSessionTitle) : null,
             sessionId !== '' ? h('span', { className: 'rl-chip rl-chip-mono' }, sessionId) : null,
@@ -8948,13 +9140,13 @@ window.__ModuleLoader__.load({
             h(LabButton, {
               label: t('ws.copilot.openNative'),
               variant: 'ghost',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('chat'),
             }),
             h(LabButton, {
               label: t('ws.copilot.openTrajectory'),
               variant: 'ghost',
-              disabled: sessionId === '',
+              disabled: sessionId === '' || phase === 'loading',
               onClick: () => openNative('trajectory'),
             }),
             h(LabButton, {
@@ -8968,7 +9160,45 @@ window.__ModuleLoader__.load({
           phase === 'ready' && reason !== '' ? h('p', { className: 'rl-muted', role: 'status', style: { margin: 0, padding: '8px 14px' } }, reason) : null,
           nativeError === '' ? null : h('p', { className: 'rl-error-text', role: 'alert', style: { margin: 0, padding: '8px 14px' } }, nativeError),
           probe === null ? null : h('pre', { className: 'rl-copilot-probe', title: 'Click to close', onClick: () => setProbe(null) }, probe),
-          h('div', { className: 'rl-copilot-native-body' }, body),
+          h(
+            'div',
+            { className: 'rl-copilot-native-workspace' },
+            h(
+              'aside',
+              { className: 'rl-copilot-sidebar', 'aria-label': t('ws.copilot.conversations') },
+              h(
+                'div',
+                { className: 'rl-copilot-sidebar-head' },
+                h('span', { className: 'rl-copilot-sidebar-title' }, t('ws.copilot.conversations')),
+                h(LabButton, { label: t('ws.copilot.newSession'), variant: 'ghost', disabled: phase === 'loading', onClick: createCopilotSession }),
+              ),
+              h(
+                'div',
+                { className: 'rl-copilot-sidebar-list', 'aria-busy': phase === 'loading' },
+                sessions.length === 0
+                  ? h('p', { className: 'rl-empty-note' }, t('ws.copilot.noSessions'))
+                  : sessions.map((entry) => h(
+                      'button',
+                      {
+                        key: entry.id,
+                        type: 'button',
+                        className: 'rl-copilot-sidebar-row',
+                        'data-session-id': entry.id,
+                        'aria-current': entry.id === sessionId ? 'true' : undefined,
+                        title: entry.title + '\n' + entry.id,
+                        disabled: phase === 'loading',
+                        onClick: () => switchCopilotSession(entry.id),
+                      },
+                      h('span', { className: 'rl-copilot-sidebar-row-title' }, entry.title),
+                      h('span', {
+                        className: 'rl-copilot-sidebar-kind',
+                        title: t(entry.private ? 'ws.copilot.privateSessionHint' : 'ws.copilot.legacySessionHint'),
+                      }, t(entry.private ? 'ws.copilot.privateSession' : 'ws.copilot.legacySession')),
+                    )),
+              ),
+            ),
+            h('div', { className: 'rl-copilot-native-body' }, body),
+          ),
         ),
       );
     }
@@ -8984,7 +9214,8 @@ window.__ModuleLoader__.load({
         && previous.openNativeSession === next.openNativeSession
         && previous.retainCopilotSession === next.retainCopilotSession
         && previous.SessionProvider === next.SessionProvider
-        && previous.renderFactorySlot === next.renderFactorySlot,
+        && previous.renderFactorySlot === next.renderFactorySlot
+        && previous.t === next.t,
     );
 
     /** Compact live expert-run chip for the workspace top bar. */
@@ -14709,13 +14940,16 @@ window.__ModuleLoader__.load({
         const t = ctx.locale.bind(NS);
         const openNativeSession = buildNativeOpener(ctx);
         /** Retain the persistent Copilot session for an embedded native Conversation. */
-        const retainCopilotSession = (sessionId) => {
+        const retainCopilotSession = (sessionId, parentSessionId) => {
           const id = firstString(sessionId);
+          const parent = firstString(parentSessionId);
           if (id === '') return null;
           try {
             if (ctx.sessions === null || ctx.sessions === undefined || typeof ctx.sessions.retain !== 'function') return null;
             let target = id;
-            if (typeof ctx.sessions.subagentAddress === 'function') {
+            if (parent !== '') {
+              target = { parentSessionId: parent, childSessionId: id, mode: 'continuable' };
+            } else if (typeof ctx.sessions.subagentAddress === 'function') {
               const address = ctx.sessions.subagentAddress(id);
               if (address !== undefined && address !== null && String(address) !== '') target = address;
             }
