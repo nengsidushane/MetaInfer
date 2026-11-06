@@ -5431,11 +5431,12 @@ window.__ModuleLoader__.load({
 
     /**
      * Poll one project: `/state` every 1.5s with revision short-circuit, `/events`
-     * every 2s with an `after` cursor. Polling pauses while the document is
-     * hidden and resumes with an immediate refetch; failures back off
+     * every 2s with an `after` cursor. Hidden/covered workspaces keep only the
+     * existing 15s attention-state poll when enabled; resume catches up without
+     * resetting snapshots/cursors. Failures back off
      * 1.5s → 3s → 5s and surface through the inline banner.
      */
-    function useProjectWorkspace(projectId, t, attentionPrefsRef) {
+    function useProjectWorkspace(projectId, t, attentionPrefsRef, covered = false) {
       const [snapshot, setSnapshot] = React.useState({
         phase: 'loading',
         project: null,
@@ -5459,6 +5460,9 @@ window.__ModuleLoader__.load({
       const eventsBackoffRef = React.useRef(0);
       const refreshRef = React.useRef(null);
       const retryRef = React.useRef(null);
+      const attentionOn = attentionPrefsRef !== undefined && attentionPrefsRef !== null && asObject(attentionPrefsRef.current).enabled === true;
+      const activityRef = React.useRef({ covered, lastCovered: covered, lastAttention: attentionOn, reconcile: null });
+      activityRef.current.covered = covered;
 
       React.useEffect(() => {
         let alive = true;
@@ -5488,7 +5492,7 @@ window.__ModuleLoader__.load({
         const flights = { state: null, events: null };
         /** Per-channel failure flags: the banner clears only when both recover. */
         const failing = { state: false, events: false };
-        const visible = () => doc === null || doc.visibilityState === 'visible';
+        const visible = () => !activityRef.current.covered && (doc === null || doc.visibilityState === 'visible');
         const attentionEnabled = () =>
           attentionPrefsRef !== undefined &&
           attentionPrefsRef !== null &&
@@ -5504,7 +5508,7 @@ window.__ModuleLoader__.load({
           clearTimer(name);
           if (!alive) return;
           const hidden = !visible();
-          // Hidden pages keep a slow state poll only when attention alerts are on.
+          // Hidden/covered workspaces keep only the existing slow attention-state poll.
           if (hidden && (name === 'events' || !attentionEnabled())) return;
           timers[name] = setTimeout(() => {
             timers[name] = null;
@@ -5538,14 +5542,14 @@ window.__ModuleLoader__.load({
           if (!failing.state && !failing.events) setOffline(null);
         };
 
-        const pollState = async () => {
-          if (!alive) return;
+        const pollState = async (bootstrap = false) => {
+          if (!alive || (!bootstrap && !visible() && !attentionEnabled())) return;
           abortFlight('state');
           const controller = new AbortController();
           flights.state = controller;
           try {
             const data = await api.fetchState(projectId, revisionRef.current, controller.signal, t);
-            if (!alive) return;
+            if (!alive || flights.state !== controller || controller.signal.aborted) return;
             flights.state = null;
             if (data !== null && typeof data === 'object' && data.unchanged === true) {
               const revision = finiteNumber(data.revision);
@@ -5571,7 +5575,7 @@ window.__ModuleLoader__.load({
             clearFailure('state');
             schedule('state', POLL_STATE_MS, pollState);
           } catch (error) {
-            if (!alive || isAbortError(error)) return;
+            if (!alive || flights.state !== controller || controller.signal.aborted || isAbortError(error)) return;
             flights.state = null;
             recordFailure('state', stateBackoffRef, error, pollState);
           }
@@ -5584,7 +5588,7 @@ window.__ModuleLoader__.load({
           flights.events = controller;
           try {
             const data = await api.fetchEvents(projectId, eventsNextRef.current, controller.signal, t);
-            if (!alive) return;
+            if (!alive || flights.events !== controller || controller.signal.aborted) return;
             flights.events = null;
             const payload = asObject(data);
             const incoming = asArray(payload.events).filter((event) => event !== null && typeof event === 'object');
@@ -5612,7 +5616,7 @@ window.__ModuleLoader__.load({
             clearFailure('events');
             schedule('events', POLL_EVENTS_MS, pollEvents);
           } catch (error) {
-            if (!alive || isAbortError(error)) return;
+            if (!alive || flights.events !== controller || controller.signal.aborted || isAbortError(error)) return;
             flights.events = null;
             recordFailure('events', eventsBackoffRef, error, pollEvents);
           }
@@ -5623,10 +5627,9 @@ window.__ModuleLoader__.load({
           if (!visible()) {
             clearTimer('events');
             abortFlight('events');
-            if (!attentionEnabled()) {
-              clearTimer('state');
-              abortFlight('state');
-            }
+            clearTimer('state');
+            if (!attentionEnabled()) abortFlight('state');
+            else if (flights.state === null) schedule('state', HIDDEN_POLL_MS, pollState);
             return;
           }
           stateBackoffRef.current = 0;
@@ -5637,6 +5640,7 @@ window.__ModuleLoader__.load({
           void pollEvents();
         };
 
+        activityRef.current.reconcile = onVisibilityChange;
         if (doc !== null && typeof doc.addEventListener === 'function') {
           doc.addEventListener('visibilitychange', onVisibilityChange);
         }
@@ -5658,7 +5662,7 @@ window.__ModuleLoader__.load({
           const run = refreshRef.current;
           if (run) run();
         };
-        void pollState();
+        void pollState(true);
         void pollEvents();
 
         return () => {
@@ -5670,10 +5674,19 @@ window.__ModuleLoader__.load({
           if (doc !== null && typeof doc.removeEventListener === 'function') {
             doc.removeEventListener('visibilitychange', onVisibilityChange);
           }
+          if (activityRef.current.reconcile === onVisibilityChange) activityRef.current.reconcile = null;
           refreshRef.current = null;
           retryRef.current = null;
         };
       }, [projectId, t]);
+
+      React.useEffect(() => {
+        const activity = activityRef.current;
+        if (activity.lastCovered === covered && activity.lastAttention === attentionOn) return;
+        activity.lastCovered = covered;
+        activity.lastAttention = attentionOn;
+        if (activity.reconcile) activity.reconcile();
+      }, [covered, attentionOn]);
 
       const refresh = React.useCallback(() => {
         const run = refreshRef.current;
@@ -5809,20 +5822,25 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Poll `/runs` every 2s while the runs panel is mounted (the panel component
-     * exists only while open). Full-list refresh, visibility pause, 1.5/3/5s
-     * backoff, AbortController cleanup.
+     * Poll `/runs` every 2s for the workspace/expert chip while active. Keep
+     * cached runs when covered; resume immediately. Visibility pause, 1.5/3/5s
+     * backoff and AbortController cleanup.
      */
-    function useRuns(projectId, t) {
+    function useRuns(projectId, t, active = true) {
       const [state, setState] = React.useState({ phase: 'loading', runs: [], cycles: [], error: null, delay: 0 });
       const backoffRef = React.useRef(0);
       const refreshRef = React.useRef(null);
       const retryRef = React.useRef(null);
 
       React.useEffect(() => {
-        let alive = true;
         backoffRef.current = 0;
         setState({ phase: 'loading', runs: [], cycles: [], error: null, delay: 0 });
+      }, [projectId, t]);
+
+      React.useEffect(() => {
+        if (!active) return undefined;
+        let alive = true;
+        backoffRef.current = 0;
         const doc = typeof document !== 'undefined' ? document : null;
         let timer = null;
         let flight = null;
@@ -5857,14 +5875,14 @@ window.__ModuleLoader__.load({
           flight = controller;
           try {
             const data = await api.fetchRuns(projectId, controller.signal, t);
-            if (!alive) return;
+            if (!alive || flight !== controller || controller.signal.aborted) return;
             flight = null;
             const normalized = normalizeRuns(data);
             setState({ phase: 'ready', runs: normalized.runs, cycles: normalized.cycles, error: null, delay: 0 });
             backoffRef.current = 0;
             schedule(RUNS_POLL_MS);
           } catch (error) {
-            if (!alive || isAbortError(error)) return;
+            if (!alive || flight !== controller || controller.signal.aborted || isAbortError(error)) return;
             flight = null;
             const delay = BACKOFF_MS[Math.min(backoffRef.current, BACKOFF_MS.length - 1)];
             backoffRef.current = Math.min(backoffRef.current + 1, BACKOFF_MS.length - 1);
@@ -5910,7 +5928,7 @@ window.__ModuleLoader__.load({
           refreshRef.current = null;
           retryRef.current = null;
         };
-      }, [projectId, t]);
+      }, [projectId, t, active]);
 
       const refresh = React.useCallback(() => {
         const run = refreshRef.current;
@@ -7685,7 +7703,6 @@ window.__ModuleLoader__.load({
       const [notifyPrefs, setNotifyPrefs] = React.useState(() => attentionPrefsOf());
       const notifyPrefsRef = React.useRef(notifyPrefs);
       notifyPrefsRef.current = notifyPrefs;
-      const { snapshot, events, offline, retry, reload, applyAutoResult, applyCommandResult } = useProjectWorkspace(projectId, t, notifyPrefsRef);
       const [selectedId, setSelectedId] = React.useState(null);
       const [continueNodeId, setContinueNodeId] = React.useState(null);
       const [busyKey, setBusyKey] = React.useState('');
@@ -7718,6 +7735,7 @@ window.__ModuleLoader__.load({
           return false;
         }
       });
+      const { snapshot, events, offline, retry, reload, applyAutoResult, applyCommandResult } = useProjectWorkspace(projectId, t, notifyPrefsRef, copilotOpen);
       const busyRef = React.useRef('');
       const stepBusyRef = React.useRef(false);
       const autoBusyRef = React.useRef(false);
@@ -7741,9 +7759,9 @@ window.__ModuleLoader__.load({
       );
       const autoState = snapshot.auto;
       const autoStatus = autoStatusOf(autoState);
-      const now = useNow(runningCount > 0 || autoStatus === 'running');
+      const now = useNow(!copilotOpen && (runningCount > 0 || autoStatus === 'running'));
       const modelCatalog = useModelCatalog(projectId, t);
-      const runsFeed = useRuns(projectId, t);
+      const runsFeed = useRuns(projectId, t, !copilotOpen);
       const modelOptions = modelCatalog.state.catalog === null ? [] : asArray(modelCatalog.state.catalog.options);
       const modelProviders = modelCatalog.state.catalog === null ? [] : asArray(modelCatalog.state.catalog.providers);
       const escalateAvailable = asArray(modelOptions).some((option) => {
